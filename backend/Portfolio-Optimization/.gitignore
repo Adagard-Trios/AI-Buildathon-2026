@@ -1,0 +1,52 @@
+# Generated artifacts: parquet caches, model checkpoints, MLflow runs, SFT trajectories.
+# Everything the pipeline produces lives here so the `data/` *package* never collides with
+# cached *data files*.
+artifacts/*
+
+# ...except the agent trajectories. They are a RESULT, not a cache: 767 grounded
+# transcripts generated against a local Ollama model, which Colab cannot reproduce because
+# it has no Ollama. Ignoring them meant a fresh clone could never run the SFT cell, and the
+# notebook asked people to upload a file by hand. 5.7MB is a reasonable price for making
+# the run self-contained and the dataset versioned alongside the code that consumed it.
+!artifacts/trajectories/
+artifacts/trajectories/*
+!artifacts/trajectories/*.jsonl
+
+# Environments
+.venv/
+
+# uv.lock IS committed, deliberately. This is an application, not a library, and the
+# evaluation report claims reproducible results -- an exact dependency resolution is part of
+# that claim. requirements.txt is the same snapshot for readers without uv.
+
+# Secrets
+.env
+
+# MLflow (if ever run outside artifacts/)
+mlruns/
+mlartifacts/
+
+# Data files
+*.parquet
+*.feather
+*.db
+*.sqlite
+*.sqlite3
+
+# Model weights
+*.pt
+*.pth
+*.safetensors
+*.ckpt
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# Per-fold backtest checkpoints (resumable; regenerated on demand)
+artifacts/results/_folds_*.csv

@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+langchain-core
+langchain-ollama
+langgraph
+pydanticlangchain-google-genai  # only used when GEMINI_API_KEY is set
+pyjwt>=2.8,<3.0

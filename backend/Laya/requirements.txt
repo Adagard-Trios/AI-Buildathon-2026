@@ -1,0 +1,5 @@
+fastapi>=0.115,<1.0
+uvicorn>=0.30,<1.0
+pydantic>=2.7,<3.0
+# laya (and a fine-tuned checkpoint) are required for /classify; without them the service answers 503
+# and callers route to Gemini:  pip install laya

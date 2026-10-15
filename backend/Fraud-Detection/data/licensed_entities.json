@@ -1,0 +1,5 @@
+{
+  "_note": "Seed snapshot for development. Replace with a dated copy of the public regulator register.",
+  "snapshot_date": "2026-09-01",
+  "entities": ["Commercial Bank of Ceylon", "Bank of Ceylon", "People's Bank", "Hatton National Bank", "Sampath Bank", "John Keells Stockbrokers", "Capital Alliance Securities", "NDB Securities", "CT CLSA Securities"]
+}

@@ -1,0 +1,9 @@
+{
+  "_note": "Seed scam scripts: synthetic examples modelled on public advisory patterns.",
+  "scripts": [
+    {"id": "s1", "synthetic": true, "text": "Guaranteed 30% monthly returns. Only 10 slots left. Your friend already joined. Send payment now to this account."},
+    {"id": "s2", "synthetic": true, "text": "Double your money in 7 days with our forex trading group. Deposit to the personal account below. Limited seats."},
+    {"id": "s3", "synthetic": true, "text": "Your bank account is suspended. Verify your details immediately at the link or your funds will be frozen."},
+    {"id": "s4", "synthetic": true, "text": "Crypto mining pool risk free profit daily. Send USDT to this wallet to activate your plan."}
+  ]
+}
