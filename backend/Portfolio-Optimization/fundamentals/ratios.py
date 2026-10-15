@@ -138,6 +138,15 @@ def _mul(a: float | None, b: float) -> float | None:
     return None if a is None else a * b
 
 
+SIGNAL_NAMES = {
+    ("net_profit", "total_assets"): "roa_improving",
+    ("borrowings", "total_assets"): "leverage_falling",
+    ("current_assets", "current_liabilities"): "liquidity_improving",
+    ("gross_profit", "revenue"): "margin_improving",
+    ("revenue", "total_assets"): "turnover_improving",
+}
+
+
 def piotroski(cur: dict[str, float], cmp_: dict[str, float], annualise: float
               ) -> tuple[int | None, int, dict[str, bool]]:
     """Piotroski (2000) F-score over the signals computable from one report's two columns.
@@ -156,22 +165,25 @@ def piotroski(cur: dict[str, float], cmp_: dict[str, float], annualise: float
         signals["roa_positive"] = cur["net_profit"] > 0
     if has("cfo"):
         signals["cfo_positive"] = cur["cfo"] > 0
-    if has("net_profit", "total_assets") and has("net_profit", "total_assets", src=cmp_):
-        signals["roa_improving"] = cur["net_profit"] / cur["total_assets"] > cmp_["net_profit"] / cmp_["total_assets"]
+    def improved(num: str, den: str, *, lower_is_better: bool = False) -> None:
+        """Signal from num/den now vs the comparative column; skipped when either ratio is undefined."""
+        if not (has(num, den) and has(num, den, src=cmp_)):
+            return
+        now, before = _div(cur[num], cur[den]), _div(cmp_[num], cmp_[den])
+        if now is None or before is None:
+            return
+        signals[SIGNAL_NAMES[(num, den)]] = now <= before if lower_is_better else now > before
+
+    improved("net_profit", "total_assets")
     if has("cfo", "net_profit"):
         signals["accruals"] = cur["cfo"] > cur["net_profit"]
-    if has("borrowings", "total_assets") and has("borrowings", "total_assets", src=cmp_):
-        signals["leverage_falling"] = cur["borrowings"] / cur["total_assets"] <= cmp_["borrowings"] / cmp_["total_assets"]
-    if has("current_assets", "current_liabilities") and has("current_assets", "current_liabilities", src=cmp_):
-        signals["liquidity_improving"] = (cur["current_assets"] / cur["current_liabilities"]
-                                          > cmp_["current_assets"] / cmp_["current_liabilities"])
+    improved("borrowings", "total_assets", lower_is_better=True)
+    improved("current_assets", "current_liabilities")
     if has("stated_capital") and has("stated_capital", src=cmp_):
         # Small option-plan issues (<1%) are not dilution in Piotroski's sense.
         signals["no_dilution"] = cur["stated_capital"] <= cmp_["stated_capital"] * 1.01
-    if has("gross_profit", "revenue") and has("gross_profit", "revenue", src=cmp_):
-        signals["margin_improving"] = cur["gross_profit"] / cur["revenue"] > cmp_["gross_profit"] / cmp_["revenue"]
-    if has("revenue", "total_assets") and has("revenue", "total_assets", src=cmp_):
-        signals["turnover_improving"] = cur["revenue"] / cur["total_assets"] > cmp_["revenue"] / cmp_["total_assets"]
+    improved("gross_profit", "revenue")
+    improved("revenue", "total_assets")
 
     available = len(signals)
     score = sum(signals.values()) if available >= 5 else None

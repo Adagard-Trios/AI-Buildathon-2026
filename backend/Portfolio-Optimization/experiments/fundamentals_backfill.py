@@ -152,7 +152,11 @@ def backfill_cse(checkpoint: Checkpoint, *, limit: int | None, include_annual: b
                 continue
             ratios = None
             if record.get("usable"):
-                ratios = compute_ratios(record, price=_price_on(bars, ref.uploaded_at), previous=previous)
+                try:
+                    ratios = compute_ratios(record, price=_price_on(bars, ref.uploaded_at), previous=previous)
+                except Exception as exc:  # noqa: BLE001 - one odd report must not stop a multi-hour run
+                    logger.warning("ratios failed for %s: %s: %s", key, type(exc).__name__, exc)
+                    ratios = None
                 record["ratios"] = ratios
                 previous = record
             checkpoint.add(key, {"symbol": symbol, "report_id": ref.report_id,
@@ -285,7 +289,11 @@ def backfill_us(checkpoint: Checkpoint, symbols: list[str]) -> None:
             when = datetime.fromisoformat(statement["available_from"]).replace(tzinfo=None)
             before = closes[closes.index <= when]
             price = float(before.iloc[-1]) if len(before) else None
-            ratios = compute_ratios(statement, price=price, previous=previous) if statement["usable"] else None
+            try:
+                ratios = compute_ratios(statement, price=price, previous=previous) if statement["usable"] else None
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("ratios failed for %s: %s: %s", key, type(exc).__name__, exc)
+                ratios = None
             statement["ratios"] = ratios
             previous = statement if statement["usable"] else previous
             checkpoint.add(key, {"symbol": symbol, "report_id": statement["report_id"],
