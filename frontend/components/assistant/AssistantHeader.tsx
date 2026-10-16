@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { BotIcon, ShieldIcon } from "./icons";
+import { ShieldIcon } from "./icons";
 
 export function AssistantHeader() {
   return (

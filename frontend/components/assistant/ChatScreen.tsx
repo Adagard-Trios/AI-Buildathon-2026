@@ -1,13 +1,18 @@
 "use client";
 
 import React, { useState } from "react";
-import { ChatMessage, TabType } from "./types";
+import { ChatMessage } from "./types";
 import { MOCK_INITIAL_MESSAGES, SUGGESTED_QUESTIONS } from "./mockData";
 import { AgentWorkflowPanel } from "./AgentWorkflowPanel";
-import { BotIcon, SparklesIcon, ChevronRightIcon, WrenchIcon, ShieldIcon } from "./icons";
+import { BotIcon, SparklesIcon, ChevronRightIcon, WrenchIcon } from "./icons";
 
-import { request } from "@/lib/api/client";
+import { ApiError, request } from "@/lib/api/client";
 import { LANGS, listen, speak, voiceInputSupported, type Lang } from "@/lib/voice";
+
+// Module-level so they run only from event handlers, never during render.
+let seq = 0;
+const newId = (prefix: string) => `${prefix}_${Date.now()}_${seq++}`;
+const clockLabel = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
 interface Props {
   onNavigateToExplanation: () => void;
@@ -38,10 +43,10 @@ export function ChatScreen({ onNavigateToExplanation }: Props) {
     if (!text.trim() || isSimulatingResponse) return;
 
     const userMsg: ChatMessage = {
-      id: `usr_${Date.now()}`,
+      id: newId("usr"),
       sender: "user",
       text: text,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      timestamp: clockLabel(),
     };
 
     setMessages((prev) => [...prev, userMsg]);
@@ -60,10 +65,10 @@ export function ChatScreen({ onNavigateToExplanation }: Props) {
       });
 
       const assistantMsg: ChatMessage = {
-        id: `ast_${Date.now()}`,
+        id: newId("ast"),
         sender: "assistant",
         text: response.answer || "No response received.",
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        timestamp: clockLabel(),
         toolsCalled: response.agent_execution?.tools_used || [],
         evidenceUsed: (response.evidence || []).map((e) => e.tool),
         hasWhyButton: true,
@@ -71,43 +76,23 @@ export function ChatScreen({ onNavigateToExplanation }: Props) {
 
       setMessages((prev) => [...prev, assistantMsg]);
       if (!speak(assistantMsg.text, lang) && lang !== "en") setVoiceNote("No voice installed for this language; showing text only.");
-    } catch {
-      // Fallback to local research mock data if backend is offline
-      let assistantResponse: ChatMessage;
-
-      if (text.toLowerCase().includes("risk") || text.toLowerCase().includes("portfolio")) {
-        assistantResponse = {
-          id: `ast_${Date.now()}`,
+    } catch (cause) {
+      // No invented answer when the assistant is unreachable. A canned reply with figures
+      // that no tool produced is exactly what the grounding validator exists to prevent.
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: newId("ast"),
           sender: "assistant",
-          text: "Your overall portfolio risk profile is moderate. However, recent transaction TX1001 flagged a localized spike due to non-standard transfer velocity and location telemetry.",
-          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          toolsCalled: ["get_portfolio_analysis", "get_fraud_analysis"],
-          evidenceUsed: ["Portfolio Telemetry", "SHAP Attribution"],
-          hasWhyButton: true,
-        };
-      } else if (text.toLowerCase().includes("evidence")) {
-        assistantResponse = {
-          id: `ast_${Date.now()}`,
-          sender: "assistant",
-          text: "The decision is backed by verified evidence: Fraud Analysis Model (Score 0.92), Blockchain Record AUDIT-2026-001 (Block 1847291), and SHAP feature attributions.",
-          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          toolsCalled: ["get_blockchain_audit", "get_fraud_analysis"],
-          evidenceUsed: ["Blockchain Audit", "SHAP Explanation"],
-          hasWhyButton: true,
-        };
-      } else {
-        assistantResponse = {
-          id: `ast_${Date.now()}`,
-          sender: "assistant",
-          text: "TX1001 was blocked because the transaction was classified as high risk. The strongest contributing factors were the unusually high transfer amount, unusual location, and use of a new device.",
-          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          toolsCalled: ["get_fraud_analysis", "get_blockchain_audit"],
-          evidenceUsed: ["Fraud Analysis", "Blockchain Audit", "SHAP Explanation"],
-          hasWhyButton: true,
-        };
-      }
-
-      setMessages((prev) => [...prev, assistantResponse]);
+          text: `The assistant is unavailable right now, so there is no answer to show. ${
+            cause instanceof ApiError ? cause.message : "Please try again shortly."
+          }`,
+          timestamp: clockLabel(),
+          toolsCalled: [],
+          evidenceUsed: [],
+          hasWhyButton: false,
+        },
+      ]);
     } finally {
       setIsSimulatingResponse(false);
     }
