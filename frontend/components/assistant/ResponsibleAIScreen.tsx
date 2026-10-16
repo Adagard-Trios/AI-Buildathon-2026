@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { MOCK_RESPONSIBLE_METRICS } from "./mockData";
-import { CpuIcon, LockIcon, ShieldIcon, CheckCircleIcon, AlertTriangleIcon } from "./icons";
+import { CpuIcon, CheckCircleIcon, AlertTriangleIcon } from "./icons";
 
 export function ResponsibleAIScreen() {
   const [explanationEnabled, setExplanationEnabled] = useState(true);

@@ -16,3 +16,7 @@ __pycache__/
 .venv/
 venv/
 node_modules/
+
+# Local browser-automation artefacts (Colab snapshots, Playwright logs/downloads)
+.playwright-mcp/
+colab_snap*.yml

@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { MOCK_TRANSACTION } from "./mockData";
-import { BarChartIcon, CheckCircleIcon, ShieldIcon, SparklesIcon, ChevronRightIcon } from "./icons";
+import { BarChartIcon, CheckCircleIcon, SparklesIcon, ChevronRightIcon } from "./icons";
 
 interface Props {
   onNavigateToTrustPanel: () => void;
@@ -143,7 +143,7 @@ export function ExplanationScreen({ onNavigateToTrustPanel }: Props) {
           </span>
         </div>
         <p className="text-sm font-medium leading-relaxed text-neutral-800 dark:text-neutral-200">
-          "The transaction was classified as high risk mainly because of the unusually high transfer amount. The unusual location and new device also increased the estimated risk."
+          &ldquo;The transaction was classified as high risk mainly because of the unusually high transfer amount. The unusual location and new device also increased the estimated risk.&rdquo;
         </p>
 
         {/* Evidence Sources & Next Action */}
