@@ -193,8 +193,12 @@ class HybridForecaster:
         rename = {f"p{int(q * 100)}": f"base_p{int(q * 100)}" for q in self.config.quantiles}
         frames = []
 
-        for symbol, group in features.groupby("symbol", sort=False):
+        n_symbols = features["symbol"].nunique()
+        for i, (symbol, group) in enumerate(features.groupby("symbol", sort=False), 1):
             group = group.sort_values("timestamp").reset_index(drop=True)
+            if i == 1 or i % 10 == 0 or i == n_symbols:
+                # The base pass is the long, otherwise silent part of training.
+                logger.info("base forecasts: symbol %d/%d (%s)", i, n_symbols, symbol)
 
             try:
                 probe = self.base.predict_quantiles(group, horizon=horizon)
