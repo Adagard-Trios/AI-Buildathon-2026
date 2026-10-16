@@ -7,6 +7,7 @@ process.env.JWT_SECRET = "unit-test-secret-long-enough-0123456789abcdef";
 const app = require("./src/index");
 const audit = require("./src/services/auditService");
 const controller = require("./src/controllers/auditController");
+const applyQueryForTest = (rows, q) => require("./src/routes/odata").applyQuery(rows, q, "http://x/odata/v1/audit");
 
 const b64 = o => Buffer.from(typeof o === "string" ? o : JSON.stringify(o)).toString("base64url");
 function token(claims = {}, secret = process.env.JWT_SECRET, alg = "HS256") {
@@ -40,6 +41,25 @@ const auth = (claims, secret) => ({ authorization: `Bearer ${token(claims, secre
     r = await call(port, "GET", `/odata/v1/audit/AuditRecords?${q}`); assert.strictEqual(r.status, 400, q); assert.ok(r.body.error.code);
   }
   assert.strictEqual((await call(port, "GET", "/odata/v1/audit/AuditRecords('a')")).body.Id, "a");
+  // Protocol conformance for generic clients (Power Query, SAP, a bank's integration layer)
+  const raw = (path) => new Promise((resolve, reject) => http.get({ port, path }, res => {
+    let d = ""; res.on("data", c => (d += c)); res.on("end", () => resolve({ status: res.statusCode, headers: res.headers, text: d }));
+  }).on("error", reject));
+  let h = await raw("/odata/v1/audit/AuditRecords");
+  assert.strictEqual(h.headers["odata-version"], "4.0"); assert.ok(/^application\/json;.*odata\.metadata=minimal/.test(h.headers["content-type"]));
+  assert.strictEqual((await raw("/odata/v1/audit/Nope")).headers["odata-version"], "4.0", "errors carry the header too");
+  h = await raw("/odata/v1/audit/AuditRecords/$count?$filter=Decision%20eq%20'REJECT'");
+  assert.strictEqual(h.status, 200); assert.strictEqual(h.text, "2");
+  assert.strictEqual((await call(port, "GET", "/odata/v1/audit/AuditRecords?$search=x")).status, 501);
+  assert.strictEqual((await call(port, "GET", "/odata/v1/audit/AuditRecords?$bogus=x")).status, 400);
+  assert.strictEqual((await call(port, "GET", "/odata/v1/audit/AuditRecords?$format=xml")).status, 406);
+  const paged = applyQueryForTest(Array.from({ length: 205 }, (_, i) => ({ Id: `r${i}`, Decision: "REJECT" })), { $filter: "Decision eq 'REJECT'" });
+  assert.ok(paged["@odata.nextLink"] && !paged["@odata.nextLink"].includes(" "), "nextLink is URL-encoded");
+  const mdRes = await raw("/odata/v1/audit/$metadata");
+  assert.strictEqual(mdRes.status, 200, "$metadata is reachable"); assert.ok(mdRes.headers["content-type"].startsWith("application/xml"));
+  const md = mdRes.text;
+  assert.ok(/<Action Name="Review"><Parameter Name="RecordId"[^>]*\/><Parameter Name="Decision"[^>]*\/><ReturnType/.test(md), "Review declares params and return type");
+  assert.ok(/<Function Name="Verify"><Parameter Name="RecordId"[^>]*\/><ReturnType/.test(md), "Verify declares params and return type");
   assert.strictEqual((await call(port, "GET", "/odata/v1/audit/AuditRecords('zz')")).status, 404);
   assert.strictEqual((await call(port, "GET", "/odata/v1/audit/Verify(RecordId='a')")).body.status, "VERIFIED");
   await call(port, "POST", "/odata/v1/audit/Tamper", { body: { RecordId: "a", Field: "riskScore", Value: 1 } });
@@ -61,10 +81,27 @@ const auth = (claims, secret) => ({ authorization: `Bearer ${token(claims, secre
   const ev = { event_id: "z1", event_type: "fraud.transaction", component: "c2", occurred_at: "2026-10-11T00:00:00Z" };
   assert.strictEqual((await call(port, "POST", "/api/audit/events", { headers: auth({}), body: ev })).status, 403, "user token cannot ingest");
   assert.strictEqual((await call(port, "POST", "/api/audit/events", { headers: auth({ typ: "service", aud: ["audit"], scope: "audit.write" }), body: ev })).status, 201);
+  // Authorization, not just authentication: a plain user token must not change the record.
+  assert.strictEqual((await call(port, "DELETE", "/api/audit/records", { headers: auth({}) })).status, 403, "user cannot wipe");
+  assert.strictEqual((await call(port, "POST", "/api/audit/reset", { headers: auth({}) })).status, 403, "user cannot reset");
+  assert.strictEqual((await call(port, "POST", "/api/audit/review", { headers: auth({}), body: { transactionId: "a", reviewerDecision: "APPROVE" } })).status, 403, "user cannot review");
+  assert.strictEqual((await call(port, "POST", "/odata/v1/audit/Review", { headers: auth({}), body: { RecordId: "a", Decision: "APPROVE" } })).status, 403, "odata review needs role");
+  assert.notStrictEqual((await call(port, "POST", "/api/audit/review", { headers: auth({ roles: ["auditor"] }), body: { transactionId: "a", reviewerDecision: "APPROVE" } })).status, 403, "auditor may review");
+  const evalBody = { transactionId: "e1", riskScore: 10, confidence: 90, amount: 1, transactionType: "T", modelVersion: "m1" };
+  assert.strictEqual((await call(port, "POST", "/api/audit/evaluate", { headers: auth({}), body: evalBody })).status, 200, "demo: user may anchor");
+  process.env.DEMO_MODE = "false";
+  assert.strictEqual((await call(port, "POST", "/api/audit/evaluate", { headers: auth({}), body: evalBody })).status, 403, "prod: user cannot anchor");
+  assert.strictEqual((await call(port, "DELETE", "/api/audit/records", { headers: auth({ roles: ["admin"] }) })).status, 403, "prod: nobody wipes");
+  assert.strictEqual((await call(port, "POST", "/api/audit/a/tamper", { headers: auth({ roles: ["admin"] }), body: {} })).status, 403, "prod: no tamper");
+  process.env.DEMO_MODE = "true";
+
   await new Promise(res => setTimeout(res, 200));
   process.env.AUTH_REQUIRED = "false";
   const denials = audit.getAllRecords().filter(x => x.finalDecision === "security.denial");
   assert.ok(denials.length >= 6, `denials anchored (${denials.length})`);
+  process.env.AUTH_REQUIRED = "true";
+  assert.strictEqual((await call(port, "DELETE", "/api/audit/records", { headers: auth({ roles: ["admin"] }) })).status, 200, "demo: admin wipes");
+  process.env.AUTH_REQUIRED = "false";
 
   audit.clearAllRecords(); server.close();
   console.log("odata + zero-trust: all passed"); process.exit(0);

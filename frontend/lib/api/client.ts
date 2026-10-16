@@ -75,6 +75,17 @@ export function setToken(token: string | null): void {
 }
 
 function messageFrom(status: number, body: unknown): string {
+  // OData routes answer {"error": {"code", "message", "details"?}} (shared/odata, Component 3).
+  if (body && typeof body === "object" && "error" in body) {
+    const err = (body as { error: unknown }).error;
+    if (err && typeof err === "object" && "message" in err) {
+      const { message, details } = err as { message: string; details?: { target?: string; message?: string }[] };
+      const extra = Array.isArray(details)
+        ? details.map((d) => (d.target ? `${d.target}: ${d.message}` : d.message)).filter(Boolean)
+        : [];
+      return extra.length ? `${message} ${extra.join("; ")}` : message;
+    }
+  }
   if (body && typeof body === "object" && "detail" in body) {
     const detail = (body as { detail: unknown }).detail;
     if (typeof detail === "string") return detail;

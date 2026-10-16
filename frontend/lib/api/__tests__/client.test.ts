@@ -70,6 +70,21 @@ describe("error messages", () => {
     );
   });
 
+  it("reads the OData error format, including field details", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(400, {
+        error: {
+          code: "BadRequest",
+          message: "The request body or parameters are invalid.",
+          details: [{ code: "BadRequest", target: "text", message: "Field required" }],
+        },
+      }),
+    );
+    await expect(request("fraud", "/odata/v1/fraud/CheckMessage")).rejects.toThrow(
+      "The request body or parameters are invalid. text: Field required",
+    );
+  });
+
   it("falls back to the status when there is no detail", async () => {
     fetchMock.mockResolvedValue(jsonResponse(500, { oops: true }));
     await expect(request("portfolio", "/x")).rejects.toThrow("Request failed (500)");

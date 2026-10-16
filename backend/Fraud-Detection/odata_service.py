@@ -55,6 +55,10 @@ def build_router(audit):
             "ReasonCodes": "Edm.String", "FirstSeen": "Edm.DateTimeOffset",
             "LastSeen": "Edm.DateTimeOffset"}, _campaigns),
     ]
-    ops = [{"name": "CheckMessage", "kind": "Action"}, {"name": "ScoreTransaction", "kind": "Action"},
-           {"name": "SimulateAttack", "kind": "Action"}]
+    from odata import edm_params
+    from schemas import AttackRequest, ScoreRequest
+
+    ops = [{"name": "CheckMessage", "kind": "Action", "params": {"text": "Edm.String"}},
+           {"name": "ScoreTransaction", "kind": "Action", "params": edm_params(ScoreRequest)},
+           {"name": "SimulateAttack", "kind": "Action", "params": edm_params(AttackRequest)}]
     return make_router(ROOT, "FirstStep.Fraud", sets, operations=ops)  # gated by the app-level dependency

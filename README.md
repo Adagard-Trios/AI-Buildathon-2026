@@ -599,12 +599,18 @@ service means a future integration is configuration, not custom code: a client r
 
 ### 12.2 Conventions
 
-- **OData v4.01**, JSON format, CSDL `$metadata` published by every service.
+- **OData v4.0**, JSON format (`application/json;odata.metadata=minimal`), `OData-Version: 4.0`
+  on every response, and a CSDL `$metadata` document published by every service.
 - **Entity sets** for data that is listed and queried; **Actions** for operations with side
-  effects; **Functions** for side-effect-free computations.
-- **Supported query options:** `$filter`, `$select`, `$expand`, `$orderby`, `$top`, `$skip`,
-  `$count`. `$search` and `$apply` are not supported in the prototype.
-- **Server-driven paging** with `@odata.nextLink`; maximum page size 200.
+  effects; **Functions** for side-effect-free computations. Every action and function declares
+  its parameters and return type in `$metadata`, generated from the same request models the
+  endpoints validate against, so the contract cannot drift from the code.
+- **Supported query options:** `$filter` (incl. `contains`, `startswith`, `endswith`),
+  `$select`, `$expand`, `$orderby`, `$top`, `$skip`, `$count`, `$format=json`, and the
+  `/<EntitySet>/$count` segment. `$search` and `$apply` return **501 Not Implemented**, and
+  unknown `$` options return 400: an ignored option would hand back unfiltered data that the
+  client believes was filtered.
+- **Server-driven paging** with a URL-encoded `@odata.nextLink`; maximum page size 200.
 - **Optimistic concurrency** with ETags (`If-Match`) on updates.
 - **Errors** in the OData JSON error format.
 - **Versioned service roots:** `/odata/v1/...`.
@@ -696,6 +702,7 @@ Content-Type: application/json
 | **User identity** | Strong authentication | Firebase Auth with MFA for sensitive roles; short-lived ID tokens |
 | **Device and app** | Only genuine clients | Firebase App Check on the web app |
 | **External systems** | Machine identity | OAuth 2.0 client credentials, scoped per client, short-lived tokens |
+| **Authorisation** | Least privilege by role, not just a valid login | `roles` claim granted only by deployment config (`PLATFORM_ROLES`), never by the API. C3 human review needs `auditor`; resetting audit records needs `admin` *and* `DEMO_MODE`; outside `DEMO_MODE` only the components that made a decision may anchor it |
 | **Edge** | Filter before the app | External HTTPS Load Balancer with Cloud Armor: WAF rules, rate limits, geo and bot controls |
 | **Admin and reviewer consoles** | Context-aware access | Identity-Aware Proxy in front of C3 review and admin screens |
 | **Service to service** | No implicit trust | Cloud Run services set to internal ingress and require IAM authentication; callers present Google-signed ID tokens |
