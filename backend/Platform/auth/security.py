@@ -58,6 +58,40 @@ def get_jwt_secret() -> str:
     return secret
 
 
+def validate_service_clients() -> None:
+    """Refuse to start on a SERVICE_CLIENTS entry with a placeholder or short secret.
+
+    Same reasoning as JWT_SECRET: .env.example ships "<fraud-secret>" placeholders, and a
+    deployment that copied them verbatim would hand out audit.write to anyone who read it.
+    """
+    for entry in filter(None, os.getenv("SERVICE_CLIENTS", "").split(";")):
+        cid, _, rest = entry.partition(":")
+        secret, _, _scopes = rest.partition(":")
+        if not cid or "<" in secret or len(secret) < 32:
+            raise RuntimeError(
+                f"SERVICE_CLIENTS entry for {cid or '?'!r} has a placeholder or short secret "
+                "(need 32+ characters). Generate one with secrets.token_urlsafe(32).")
+
+
+KNOWN_ROLES = frozenset({"auditor", "admin"})
+
+
+def roles_for(email: str) -> list[str]:
+    """Roles granted to a user, from PLATFORM_ROLES="alice@x.com:auditor admin;bob@y.com:auditor".
+
+    Configuration rather than a column: roles are granted by whoever runs the deployment, never
+    through the API, so there is no endpoint a user could call to promote themselves. Unknown
+    role names are dropped instead of passed through, so a typo cannot mint a new privilege.
+    Roles are read at token issue time; a revoked role takes effect at the user's next login.
+    """
+    wanted = email.lower().strip()
+    for entry in filter(None, os.getenv("PLATFORM_ROLES", "").split(";")):
+        who, _, roles = entry.partition(":")
+        if who.lower().strip() == wanted:
+            return sorted(set(roles.split()) & KNOWN_ROLES)
+    return []
+
+
 def hash_password(password: str) -> str:
     return _pwd_context.hash(password)
 

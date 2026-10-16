@@ -11,6 +11,7 @@ from guardian import build_alert
 import json as _json
 
 import trust_panel
+from caller_context import reset_caller, set_caller
 from odata import install_error_handler
 from zt_auth import require
 
@@ -93,13 +94,18 @@ def chat(request: ChatRequest, http: Request, principal=Depends(require("assista
     # Send user message to agent
     # ----------------------------------------------
 
-    result = agent.invoke(
-        {
-            "messages": [
-                HumanMessage(content=request.message)
-            ]
-        }
-    )
+    # Tools call other components on the user's behalf with the user's own token.
+    ctx = set_caller(http.headers.get("authorization"))
+    try:
+        result = agent.invoke(
+            {
+                "messages": [
+                    HumanMessage(content=request.message)
+                ]
+            }
+        )
+    finally:
+        reset_caller(ctx)
 
     messages = result["messages"]
 

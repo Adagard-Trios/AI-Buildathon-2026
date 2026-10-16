@@ -20,10 +20,12 @@ _challenges: dict = {}
 _lock = threading.Lock()
 
 
-def create_challenge(transaction_id: str, user_id: str) -> dict:
+def create_challenge(transaction_id: str, user_id: str, owner: str | None = None) -> dict:
+    """user_id is the transaction's customer; owner is the authenticated caller who opened the
+    challenge. Only the owner can answer it."""
     cid, code = str(uuid.uuid4()), f"{secrets.randbelow(10**6):06d}"
     with _lock:
-        _challenges[cid] = {"code": code, "tx": transaction_id, "user": user_id,
+        _challenges[cid] = {"code": code, "tx": transaction_id, "user": user_id, "owner": owner,
                             "expires": time.time() + TTL_SECONDS, "attempts": 0}
     out = {"challenge_id": cid, "expires_in": TTL_SECONDS}
     if os.getenv("DEMO_MODE", "false").lower() == "true":
@@ -31,9 +33,14 @@ def create_challenge(transaction_id: str, user_id: str) -> dict:
     return out
 
 
-def verify_challenge(challenge_id: str, code: str) -> dict:
+def verify_challenge(challenge_id: str, code: str, caller: str | None = None) -> dict:
+    """caller: the authenticated subject. A challenge opened by a signed-in caller can only be
+    answered by that caller, so a stolen challenge id and code are useless from another
+    account. A mismatch looks exactly like an unknown challenge: no hint that the id exists."""
     with _lock:
         c = _challenges.get(challenge_id)
+        if c is not None and c.get("owner") is not None and c["owner"] != caller:
+            return {"verified": False, "reason": "challenge expired, used up or unknown"}
         if c is None or time.time() > c["expires"] or c["attempts"] >= MAX_ATTEMPTS:
             _challenges.pop(challenge_id, None)
             return {"verified": False, "reason": "challenge expired, used up or unknown"}
