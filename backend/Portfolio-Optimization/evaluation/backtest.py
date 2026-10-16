@@ -180,8 +180,13 @@ def run_walk_forward(
     checkpoint: Path | None = None,
     log_to_mlflow: bool = True,
     forecaster_kwargs: dict | None = None,
+    only_folds: set[int] | None = None,
 ) -> pd.DataFrame:
-    """Train-forecast-roll across folds. Returns per-fold predictions with actuals attached."""
+    """Train-forecast-roll across folds. Returns per-fold predictions with actuals attached.
+
+    only_folds restricts the run to those fold indices (same boundaries as a full run), for
+    models too slow to backtest on every fold. Compare them on the matching folds only.
+    """
     from features.feature_store import add_targets
     from features.technical import warmup_periods
     from forecasting.base import get_forecaster
@@ -234,7 +239,7 @@ def run_walk_forward(
     )
 
     for fold, train, test in iter_fold_data(frame, folds, warmup=warmup_periods()):
-        if fold.fold_index in completed:
+        if fold.fold_index in completed or (only_folds is not None and fold.fold_index not in only_folds):
             continue
 
         try:
