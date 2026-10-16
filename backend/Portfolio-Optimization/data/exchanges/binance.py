@@ -27,6 +27,11 @@ logger = logging.getLogger(__name__)
 
 PROVIDER = "binance"
 BASE_URL = "https://api.binance.com/api/v3/"
+# Binance's public market-data mirror. api.binance.com answers HTTP 451 to US IPs, which
+# includes every Colab VM; the mirror serves the same read-only endpoints worldwide.
+MIRROR_URL = "https://data-api.binance.vision/api/v3/"
+_GEO_BLOCKED = ("HTTP 451", "HTTP 403")
+_base_url = BASE_URL
 KLINES_LIMIT = 1000
 
 USD_STABLECOINS = ("USDT", "USDC", "FDUSD", "BUSD", "TUSD", "DAI", "USDP")
@@ -41,6 +46,19 @@ QUOTE_ASSETS = tuple(
         reverse=True,
     )
 )
+
+
+def _get(path: str, params: dict[str, Any] | None = None) -> Any:
+    """GET a market-data endpoint, switching to the mirror for good once geo-blocked."""
+    global _base_url
+    try:
+        return request_json(PROVIDER, "GET", _base_url + path, params=params)
+    except UpstreamError as exc:
+        if _base_url == MIRROR_URL or not any(code in str(exc) for code in _GEO_BLOCKED):
+            raise
+        logger.info("binance: %s; using %s", exc, MIRROR_URL)
+        _base_url = MIRROR_URL
+        return request_json(PROVIDER, "GET", _base_url + path, params=params)
 
 
 def split_pair(symbol: str) -> tuple[str, str] | None:
@@ -59,7 +77,7 @@ def quote_currency(quote_asset: str) -> str:
 
 def list_pairs() -> list[dict[str, Any]]:
     """Every spot pair with a last price, normalised to the catalogue's row shape."""
-    payload = request_json(PROVIDER, "GET", BASE_URL + "ticker/price")
+    payload = _get("ticker/price")
     if not isinstance(payload, list) or not payload:
         raise UpstreamError(PROVIDER, "ticker/price returned no pairs")
 
@@ -98,8 +116,8 @@ def daily_bars(symbol: str, start: date, end: date) -> pd.DataFrame:
     rows: list[list[Any]] = []
 
     while start_ms <= end_ms:
-        batch = request_json(
-            PROVIDER, "GET", BASE_URL + "klines",
+        batch = _get(
+            "klines",
             params={"symbol": symbol.upper(), "interval": "1d", "startTime": start_ms,
                     "endTime": end_ms, "limit": KLINES_LIMIT},
         )
@@ -146,7 +164,7 @@ def klines_to_frame(symbol: str, rows: list[list[Any]]) -> pd.DataFrame:
 
 def last_price(symbol: str) -> float:
     """One pair's latest price. Used by data/fx.py to convert crypto-quoted pairs."""
-    payload = request_json(PROVIDER, "GET", BASE_URL + "ticker/price", params={"symbol": symbol.upper()})
+    payload = _get("ticker/price", params={"symbol": symbol.upper()})
     try:
         return float(payload["price"])
     except (KeyError, TypeError, ValueError):

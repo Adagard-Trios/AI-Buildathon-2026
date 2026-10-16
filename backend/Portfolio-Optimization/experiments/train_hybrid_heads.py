@@ -49,9 +49,9 @@ _STABLE = {"USDC", "FDUSD", "TUSD", "BUSD", "DAI", "USDP", "EUR", "USD1", "PYUSD
 # --------------------------------------------------------------------------------------
 
 def _binance_top(limit: int) -> list[str]:
-    from data.http import request_json
+    from data.exchanges import binance
 
-    rows = request_json("binance", "GET", "https://api.binance.com/api/v3/ticker/24hr")
+    rows = binance._get("ticker/24hr")  # falls back to the public mirror when geo-blocked
     usdt = [r for r in rows if r["symbol"].endswith("USDT") and r["symbol"][:-4] not in _STABLE]
     usdt.sort(key=lambda r: float(r.get("quoteVolume") or 0), reverse=True)
     return [r["symbol"] for r in usdt[:limit]]
@@ -82,7 +82,12 @@ def collect_bars(out: Path, *, cse_limit: int | None = None) -> pd.DataFrame:
             frames.append(bars)
     logger.info("CSE: %d securities with >= %d sessions", len(frames), MIN_CSE_SESSIONS)
 
-    for symbol in _binance_top(BINANCE_TOP):
+    try:
+        top_pairs = _binance_top(BINANCE_TOP)
+    except Exception as exc:  # noqa: BLE001 - crypto is one asset class of three, not a reason to stop
+        logger.warning("Binance universe unavailable, training without crypto: %s", exc)
+        top_pairs = []
+    for symbol in top_pairs:
         try:
             frames.append(binance.daily_bars(symbol, start, end))
         except Exception as exc:  # noqa: BLE001
