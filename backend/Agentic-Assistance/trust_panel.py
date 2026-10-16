@@ -115,7 +115,10 @@ def build_routers():
         EntitySet("Guardians", "Id", {"Id": "Edm.String", "Name": "Edm.String", "Contact": "Edm.String",
                                       "CreatedAt": "Edm.DateTimeOffset"}, _mine(lambda: GUARDIANS.values())),
     ]
-    ops = [{"name": n, "kind": "Action"} for n in ("Chat", "Confirm", "Rollback")]
+    ops = [{"name": "Chat", "kind": "Action",
+            "params": {"message": "Edm.String", "guardian_contact": "Edm.String"}},
+           {"name": "Confirm", "kind": "Action", "params": {"id": "Edm.String"}},
+           {"name": "Rollback", "kind": "Action", "params": {"id": "Edm.String"}}]
     odata = make_router(ROOT, "FirstStep.Assistant", sets, dependencies=[Depends(_principal)], operations=ops)
 
     act = APIRouter(prefix=ROOT, dependencies=[Depends(_principal)])

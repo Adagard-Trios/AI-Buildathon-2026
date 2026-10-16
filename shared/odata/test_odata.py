@@ -71,3 +71,112 @@ def test_metadata_has_sets():
 def test_unknown_property_rejected_even_with_no_rows():
     with pytest.raises(ODataError):
         apply_query(ES, [], {"$filter": "Nope eq 1"}, B)
+
+
+# --------------------------------------------------------------------------- protocol conformance
+def _app():
+    from fastapi import FastAPI, HTTPException
+    from pydantic import BaseModel
+
+    from odata import install_error_handler, make_router
+
+    class Body(BaseModel):
+        n: int
+
+    app = FastAPI()
+    install_error_handler(app)
+    ops = [{"name": "Act", "kind": "Action", "params": {"n": "Edm.Int64"}},
+           {"name": "Latest", "kind": "Function", "returns": "Edm.String"}]
+    app.include_router(make_router("/odata/v1/fraud", "FirstStep.Fraud", [ES], operations=ops))
+
+    @app.post("/odata/v1/fraud/Act")
+    def act(body: Body):
+        if body.n < 0:
+            raise HTTPException(status_code=409, detail="negative")
+        return {"n": body.n}
+
+    @app.get("/plain")
+    def plain():
+        raise HTTPException(status_code=404, detail="nope")
+
+    return app
+
+
+def test_odata_headers_and_error_shapes():
+    from fastapi.testclient import TestClient
+
+    c = TestClient(_app())
+    r = c.get("/odata/v1/fraud/Verdicts")
+    assert r.headers["OData-Version"] == "4.0"
+    assert r.headers["content-type"].startswith("application/json;odata.metadata=minimal")
+    # validation and HTTP errors on OData routes use the OData error body
+    v = c.post("/odata/v1/fraud/Act", json={"n": "x"})
+    assert v.status_code == 400 and v.json()["error"]["code"] == "BadRequest" and v.json()["error"]["details"]
+    h = c.post("/odata/v1/fraud/Act", json={"n": -1})
+    assert h.status_code == 409 and h.json() == {"error": {"code": "Conflict", "message": "negative"}}
+    # non-OData routes are untouched
+    p = c.get("/plain")
+    assert p.json() == {"detail": "nope"} and "OData-Version" not in p.headers
+
+
+def test_count_segment_and_unsupported_options():
+    from fastapi.testclient import TestClient
+
+    c = TestClient(_app())
+    r = c.get("/odata/v1/fraud/Verdicts/$count", params={"$filter": "Level eq 'HIGH_RISK'"})
+    assert r.status_code == 200 and r.text == "2" and r.headers["content-type"].startswith("text/plain")
+    assert c.get("/odata/v1/fraud/Verdicts", params={"$search": "x"}).status_code == 501
+    assert c.get("/odata/v1/fraud/Verdicts", params={"$bogus": "x"}).status_code == 400
+    assert c.get("/odata/v1/fraud/Verdicts", params={"$format": "xml"}).status_code == 406
+    assert c.get("/odata/v1/fraud/Verdicts", params={"$format": "json", "custom": "1"}).status_code == 200
+
+
+def test_next_link_is_url_encoded_and_followable():
+    from urllib.parse import urlsplit
+
+    from fastapi.testclient import TestClient
+
+    c = TestClient(_app())
+    first = c.get("/odata/v1/fraud/Verdicts", params={"$filter": "Level eq 'HIGH_RISK'", "$top": "1", "$orderby": "Id"})
+    # $top=1 is satisfied, so no next link; use server paging instead
+    assert "@odata.nextLink" not in first.json()
+    import odata
+    body = odata.apply_query(ES, ROWS, {"$filter": "Level eq 'HIGH_RISK'"}, B, max_page=1)
+    link = body["@odata.nextLink"]
+    assert " " not in link
+    nxt = c.get(urlsplit(link).path + "?" + urlsplit(link).query)
+    assert nxt.status_code == 200 and [r["Id"] for r in nxt.json()["value"]] == ["c"]
+
+
+def test_metadata_declares_operation_parameters_and_return_types():
+    import xml.etree.ElementTree as ET
+
+    xml = metadata_xml("FirstStep.Fraud", [ES], [{"name": "Act", "kind": "Action", "params": {"n": "Edm.Int64"}},
+                                                  {"name": "Latest", "kind": "Function", "returns": "Edm.String"}])
+    ns = {"e": "http://docs.oasis-open.org/odata/ns/edm"}
+    root = ET.fromstring(xml)
+    act = root.find(".//e:Action[@Name='Act']", ns)
+    assert act.find("e:Parameter", ns).attrib == {"Name": "n", "Type": "Edm.Int64"}
+    assert act.find("e:ReturnType", ns).attrib["Type"] == "FirstStep.Fraud.ActResult"
+    assert root.find(".//e:ComplexType[@Name='ActResult']", ns).attrib["OpenType"] == "true"
+    assert root.find(".//e:Function[@Name='Latest']/e:ReturnType", ns).attrib["Type"] == "Edm.String"
+    assert root.find(".//e:FunctionImport[@Name='Latest']", ns).attrib["IncludeInServiceDocument"] == "true"
+
+
+def test_edm_params_from_pydantic():
+    from typing import Optional
+
+    from pydantic import BaseModel, Field
+
+    from odata import edm_params
+
+    class M(BaseModel):
+        text: str
+        amount: float
+        days: int = 3
+        tags: list[str] = []
+        note: Optional[str] = None
+        nested: dict = Field(default_factory=dict)
+
+    assert edm_params(M) == {"text": "Edm.String", "amount": "Edm.Double", "days": "Edm.Int64",
+                             "tags": "Collection(Edm.String)", "note": "Edm.String", "nested": "Edm.String"}

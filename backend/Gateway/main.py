@@ -12,17 +12,22 @@ import os
 import sys
 from pathlib import Path
 
-for _p in (Path(__file__).resolve().parents[2] / "shared" / "auth", Path("/app/shared_auth")):
+for _p in (Path(__file__).resolve().parents[2] / "shared" / "auth", Path("/app/shared_auth"),
+           Path(__file__).resolve().parents[2] / "shared" / "odata", Path("/app/shared_odata")):
     if _p.is_dir():
         sys.path.insert(0, str(_p))
 
 import httpx  # noqa: E402
 from fastapi import Depends, FastAPI, HTTPException, Request, Response  # noqa: E402
 from zt_auth import require  # noqa: E402
+from odata import install_error_handler  # noqa: E402
 
 SERVICES = ("platform", "portfolio", "fraud", "audit", "assistant")
 HOP_BY_HOP = {"host", "content-length", "connection", "transfer-encoding"}
 app = FastAPI(title="FirstStep gateway", version="0.1.0")
+# The gateway's own answers (unknown service, upstream down, auth denials) must be OData too:
+# an external client cannot tell which hop produced an error, so they all share one format.
+install_error_handler(app)
 
 
 def upstream(service: str) -> str | None:

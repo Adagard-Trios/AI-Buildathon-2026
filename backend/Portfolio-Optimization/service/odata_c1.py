@@ -75,8 +75,16 @@ def build_router():
                   expand={"PlanSteps": lambda r: r["_Steps"], "Baselines": lambda r: r["_Baselines"]}),
         EntitySet("PlanSteps", "Id", STEP_PROPS, _mine(lambda: list(_STEPS))),
     ]
-    ops = [{"name": n, "kind": "Action"} for n in ("ImportStatement", "Plan", "Optimize", "AskReport")]
-    ops.append({"name": "Forecast", "kind": "Function"})
+    from odata import edm_params
+    from service.contracts import PortfolioRequest, WithdrawalRequest
+    from service.documents import AskReportRequest, ImportStatementRequest
+
+    # Parameters come from the request models, so $metadata cannot drift from what the
+    # endpoints actually accept.
+    ops = [{"name": n, "kind": "Action", "params": edm_params(m)}
+           for n, m in (("ImportStatement", ImportStatementRequest), ("Plan", WithdrawalRequest),
+                        ("Optimize", PortfolioRequest), ("AskReport", AskReportRequest))]
+    ops.append({"name": "Forecast", "kind": "Function", "params": {"Symbol": "Edm.String", "Horizon": "Edm.Int32"}})
     router = make_router("/odata/v1/portfolio", "FirstStep.Portfolio", sets, dependencies=[Depends(_scope)],
                          operations=ops)
 

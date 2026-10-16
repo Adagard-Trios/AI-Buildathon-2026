@@ -2,12 +2,14 @@ const express = require("express");
 const auditService = require("../services/auditService");
 const controller = require("../controllers/auditController");
 const { guard } = require("../middleware/auth");
+const { guards } = require("./auditRoutes");
 
 /**
  * OData v4 surface for Component 3: /odata/v1/audit/ (README 12.3). Same conventions as the
  * Python services: $filter $select $orderby $top $skip $count, server paging (max 200),
- * OData JSON errors. There are no navigation properties, so $expand is rejected;
- * $search and $apply are unsupported.
+ * OData JSON errors, OData-Version: 4.0 on every response, /$count, and a CSDL document whose
+ * operations declare parameters and return types. There are no navigation properties, so
+ * $expand is rejected; $search and $apply answer 501 rather than being silently ignored.
  */
 const MAX_PAGE = 200;
 const PROPS = {
@@ -92,7 +94,24 @@ function intOpt(q, name) {
   return Number(q[name]);
 }
 
+const SUPPORTED = new Set(["$filter", "$select", "$orderby", "$top", "$skip", "$count", "$expand", "$format"]);
+const NOT_IMPLEMENTED = new Set(["$search", "$apply", "$compute", "$levels", "$index", "$schemaversion"]);
+
+// An ignored $-option is the dangerous failure: "$search=fraud" would return every row and the
+// client would believe it had been filtered. Same rules as shared/odata/odata.py.
+function checkOptions(q) {
+  for (const name of Object.keys(q)) {
+    if (!name.startsWith("$")) continue;
+    if (NOT_IMPLEMENTED.has(name)) throw new ODataError(`System query option '${name}' is not supported.`, 501, "NotImplemented");
+    if (!SUPPORTED.has(name)) throw new ODataError(`Unknown system query option '${name}'.`);
+  }
+  if (q.$format !== undefined && !["json", "application/json"].includes(String(q.$format).split(";")[0].trim().toLowerCase())) {
+    throw new ODataError(`Format '${q.$format}' is not supported; use json.`, 406, "NotAcceptable");
+  }
+}
+
 function applyQuery(rows, q, base) {
+  checkOptions(q);
   if (q.$filter) { const p = parseFilter(q.$filter); rows = rows.filter(r => p(r)); }
   if (q.$orderby) {
     for (const part of q.$orderby.split(",").map(s => s.trim()).filter(Boolean).reverse()) {
@@ -119,24 +138,40 @@ function applyQuery(rows, q, base) {
   if (consumed < total && (wanted === undefined || wanted > 0)) {
     const params = { ...q }; delete params.$skip; delete params.$top; params.$skip = consumed;
     if (wanted !== undefined) params.$top = wanted;
-    body["@odata.nextLink"] = `${base}/AuditRecords?` + Object.entries(params).map(([k, v]) => `${k}=${v}`).join("&");
+    // Encoded: a raw "$filter=Decision eq 'X'" is not a valid URL, and clients that follow
+    // nextLink verbatim (Power Query does) fail on the second page.
+    const enc = v => encodeURIComponent(String(v)).replace(/%24/g, "$").replace(/%2C/g, ",").replace(/%27/g, "'");
+    body["@odata.nextLink"] = `${base}/AuditRecords?` + Object.entries(params).map(([k, v]) => `${enc(k)}=${enc(v)}`).join("&");
   }
   return body;
 }
 
 const router = express.Router();
+// OData-Version on every response from this router, errors included; JSON labelled as OData.
+router.use((req, res, next) => {
+  res.set("OData-Version", "4.0");
+  const json = res.json.bind(res);
+  res.json = body => { res.type("application/json;odata.metadata=minimal"); return json(body); };
+  next();
+});
 router.use(guard({ scope: "audit.read" }));
 const base = req => `${req.protocol}://${req.get("host")}/odata/v1/audit`;
 
 router.get("/", (req, res) => res.json({ "@odata.context": base(req) + "/$metadata",
-  value: [{ name: "AuditRecords", kind: "EntitySet", url: "AuditRecords" }, { name: "Verify", kind: "FunctionImport", url: "Verify" }] }));
+  value: [{ name: "AuditRecords", kind: "EntitySet", url: "AuditRecords" }] }));
 
-router.get("/$metadata", (req, res) => {
+// Regex, not "/$metadata": "$" is special in Express path strings, and the string form
+// silently never matched, leaving $metadata a 404 for every client.
+router.get(/^\/\$metadata$/, (req, res) => {
   const props = Object.entries(PROPS).map(([n, t]) => `<Property Name="${n}" Type="${t}"/>`).join("");
   res.type("application/xml").send('<?xml version="1.0" encoding="utf-8"?><edmx:Edmx Version="4.0" xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx"><edmx:DataServices>'
     + '<Schema Namespace="FirstStep.Audit" xmlns="http://docs.oasis-open.org/odata/ns/edm">'
     + `<EntityType Name="AuditRecordItem"><Key><PropertyRef Name="Id"/></Key>${props}</EntityType>`
-    + '<Function Name="Verify"/><Action Name="Review"/><Action Name="Tamper"/>'
+    + '<ComplexType Name="VerifyResult" OpenType="true"><Property Name="verified" Type="Edm.Boolean"/><Property Name="status" Type="Edm.String"/><Property Name="message" Type="Edm.String"/></ComplexType>'
+    + '<ComplexType Name="ReviewResult" OpenType="true"/><ComplexType Name="TamperResult" OpenType="true"/>'
+    + '<Function Name="Verify"><Parameter Name="RecordId" Type="Edm.String" Nullable="false"/><ReturnType Type="FirstStep.Audit.VerifyResult"/></Function>'
+    + '<Action Name="Review"><Parameter Name="RecordId" Type="Edm.String" Nullable="false"/><Parameter Name="Decision" Type="Edm.String" Nullable="false"/><ReturnType Type="FirstStep.Audit.ReviewResult"/></Action>'
+    + '<Action Name="Tamper"><Parameter Name="RecordId" Type="Edm.String" Nullable="false"/><Parameter Name="Field" Type="Edm.String"/><Parameter Name="Value" Type="Edm.String"/><ReturnType Type="FirstStep.Audit.TamperResult"/></Action>'
     + '<EntityContainer Name="Container"><EntitySet Name="AuditRecords" EntityType="FirstStep.Audit.AuditRecordItem"/>'
     + '<FunctionImport Name="Verify" Function="FirstStep.Audit.Verify"/><ActionImport Name="Review" Action="FirstStep.Audit.Review"/>'
     + '<ActionImport Name="Tamper" Action="FirstStep.Audit.Tamper"/></EntityContainer></Schema></edmx:DataServices></edmx:Edmx>');
@@ -145,6 +180,11 @@ router.get("/$metadata", (req, res) => {
 const rows = () => auditService.getAllRecords().map(toRow);
 
 router.get("/AuditRecords", (req, res) => res.json(applyQuery(rows(), req.query, base(req))));
+// A regex, not a path string: "$" is special in Express path patterns.
+router.get(/^\/AuditRecords\/\$count$/, (req, res) => {
+  const all = rows(), hit = req.query.$filter ? all.filter(parseFilter(req.query.$filter)) : all;
+  res.type("text/plain").send(String(hit.length));
+});
 router.get(/^\/AuditRecords\('((?:[^']|'')*)'\)$/, (req, res) => {
   const id = req.params[0].replace(/''/g, "'"), hit = rows().find(r => r.Id === id);
   if (!hit) throw new ODataError("Entity not found.", 404, "NotFound");
@@ -155,9 +195,9 @@ router.get(/^\/Verify\(RecordId='((?:[^']|'')*)'\)$/, async (req, res, next) => 
   try { res.json(await auditService.verifyRecord(req.params[0].replace(/''/g, "'"))); } catch (e) { next(e); }
 });
 // Actions reuse the controller so policy, hashing and anchoring stay in one place.
-router.post("/Review", express.json(), (req, res) => controller.submitHumanReview(
+router.post("/Review", guards.review, express.json(), (req, res) => controller.submitHumanReview(
   { body: { transactionId: req.body.RecordId, reviewerDecision: req.body.Decision } }, res));
-router.post("/Tamper", express.json(), (req, res) => controller.simulateTampering(
+router.post("/Tamper", guards.tamper, express.json(), (req, res) => controller.simulateTampering(
   { params: { transactionId: req.body.RecordId }, body: { field: req.body.Field, tamperedValue: req.body.Value } }, res));
 
 router.use((req, res) => res.status(404).json({ error: { code: "NotFound", message: `Resource '${req.path}' not found.` } }));

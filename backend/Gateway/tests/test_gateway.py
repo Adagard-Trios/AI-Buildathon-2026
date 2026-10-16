@@ -54,3 +54,11 @@ def test_upstream_down_is_502(c, monkeypatch):
 
     monkeypatch.setattr(httpx.AsyncClient, "request", boom)
     assert c.get("/odata/v1/fraud/Verdicts", headers=tok()).status_code == 502
+
+
+def test_gateway_errors_are_odata_shaped(c):
+    r = c.get("/odata/v1/nope/X", headers=tok())
+    assert r.status_code == 404 and r.json()["error"]["code"] == "NotFound"
+    assert r.headers["OData-Version"] == "4.0"
+    denied = c.get("/odata/v1/fraud/Verdicts")
+    assert denied.status_code == 401 and denied.json()["error"]["code"] == "Unauthorized"
