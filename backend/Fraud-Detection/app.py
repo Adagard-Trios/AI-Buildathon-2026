@@ -14,6 +14,7 @@ Then open:        http://127.0.0.1:8000
 
 from __future__ import annotations
 
+import os
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -94,11 +95,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Permissive CORS so the demo page also works if it is opened directly from
-# disk (file://). Acceptable for a local prototype only.
+# Browser origins from ALLOWED_ORIGINS, like every other component. The bundled demo.html is
+# served by this app itself (same origin), so it needs no CORS entry; "*" is only used when
+# the variable is explicitly set to it for local experiments.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[o.strip() for o in os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",") if o.strip()],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -190,15 +192,24 @@ class VerifyRequest(BaseModel):
     code: str = Field(min_length=6, max_length=6)
 
 
+def _caller_subject(http: Request) -> str | None:
+    principal = getattr(http.state, "principal", None)
+    return principal.subject if principal is not None and principal.kind == "user" else None
+
+
 @app.post("/step-up/challenge", tags=["zero-trust"])
-async def step_up_challenge(request: ChallengeRequest) -> Dict[str, Any]:
-    """Issue a one-time code for a STEP-UP transaction."""
-    return stepup.create_challenge(request.transaction_id, request.user_id)
+async def step_up_challenge(request: ChallengeRequest, http: Request) -> Dict[str, Any]:
+    """Issue a one-time code for a STEP-UP transaction.
+
+    With auth on, the challenge is owned by the signed-in caller and only they can answer it.
+    user_id stays the transaction's customer (the simulated bank account on the fraud screen).
+    """
+    return stepup.create_challenge(request.transaction_id, request.user_id, owner=_caller_subject(http))
 
 
 @app.post("/step-up/verify", tags=["zero-trust"])
-async def step_up_verify(request: VerifyRequest) -> Dict[str, Any]:
-    return stepup.verify_challenge(request.challenge_id, request.code)
+async def step_up_verify(request: VerifyRequest, http: Request) -> Dict[str, Any]:
+    return stepup.verify_challenge(request.challenge_id, request.code, caller=_caller_subject(http))
 
 
 class ShieldRequest(BaseModel):

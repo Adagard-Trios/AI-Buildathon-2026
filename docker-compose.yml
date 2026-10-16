@@ -20,7 +20,10 @@ services:
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in a repo-root .env — see .env.example}
       ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
       DATABASE_URL: sqlite:////app/artifacts/platform.sqlite
-      SERVICE_CLIENTS: ${SERVICE_CLIENTS:-}   # "id:secret:scope1 scope2;id2:..." for external systems
+      # Machine identities, "id:secret:scope1 scope2;id2:...". Required: with auth on, a component
+      # without one cannot anchor its decisions in Component 3, and it would fail silently.
+      SERVICE_CLIENTS: ${SERVICE_CLIENTS:?set SERVICE_CLIENTS in .env (see .env.example)}
+      PLATFORM_ROLES: ${PLATFORM_ROLES:-}    # "email:auditor admin;..." -- who may review / reset audit records
     volumes:
       # Users and portfolios must outlive the container, or every restart wipes the accounts.
       - platform_data:/app/artifacts
@@ -36,8 +39,8 @@ services:
     environment:
       AUDIT_URL: http://component3:8002
       PLATFORM_URL: http://platform:8100
-      SERVICE_CLIENT_ID: ${PORTFOLIO_CLIENT_ID:-}
-      SERVICE_CLIENT_SECRET: ${PORTFOLIO_CLIENT_SECRET:-}
+      SERVICE_CLIENT_ID: ${PORTFOLIO_CLIENT_ID:?set PORTFOLIO_CLIENT_ID in .env}
+      SERVICE_CLIENT_SECRET: ${PORTFOLIO_CLIENT_SECRET:?set PORTFOLIO_CLIENT_SECRET in .env}
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in a repo-root .env}
       AUTH_REQUIRED: "true"
       ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
@@ -148,8 +151,8 @@ services:
       AUTH_REQUIRED: "true"
       AUDIT_URL: http://component3:8002      # denials are anchored by Component 3
       PLATFORM_URL: http://platform:8100
-      SERVICE_CLIENT_ID: ${FRAUD_CLIENT_ID:-}
-      SERVICE_CLIENT_SECRET: ${FRAUD_CLIENT_SECRET:-}
+      SERVICE_CLIENT_ID: ${FRAUD_CLIENT_ID:?set FRAUD_CLIENT_ID in .env}
+      SERVICE_CLIENT_SECRET: ${FRAUD_CLIENT_SECRET:?set FRAUD_CLIENT_SECRET in .env}
       DEMO_MODE: "true"                       # step-up demo_code; must be false in production
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       LAYA_ENDPOINT: ${LAYA_ENDPOINT:-}
@@ -208,6 +211,10 @@ services:
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in a repo-root .env}
       AUTH_REQUIRED: "true"
       FRAUD_URL: http://component2:8001
+      AUDIT_URL: http://component3:8002      # denials are anchored by Component 3
+      PLATFORM_URL: http://platform:8100
+      SERVICE_CLIENT_ID: ${ASSISTANT_CLIENT_ID:?set ASSISTANT_CLIENT_ID in .env}
+      SERVICE_CLIENT_SECRET: ${ASSISTANT_CLIENT_SECRET:?set ASSISTANT_CLIENT_SECRET in .env}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GUARDIAN_ENABLED: "true"
     extra_hosts:

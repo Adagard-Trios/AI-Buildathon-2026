@@ -22,10 +22,23 @@ function verify(token, secret) {
   return c;
 }
 
-/** scope: required scope for SERVICE tokens; serviceOnly: reject user tokens. */
-function guard({ scope, serviceOnly = false } = {}) {
+const demoMode = () => process.env.DEMO_MODE === "true";
+
+/**
+ * scope:       required scope for SERVICE tokens.
+ * serviceOnly: reject user tokens. A function is evaluated per request (e.g. "only outside DEMO_MODE").
+ * role:        required role for USER tokens (the platform's `roles` claim). Without it a user
+ *              token passes on authentication alone, which is fine for reads and wrong for
+ *              anything that changes the record.
+ * demoOnly:    the route exists only in DEMO_MODE; otherwise 403 before any token check.
+ */
+function guard({ scope, serviceOnly = false, role, demoOnly = false } = {}) {
   return (req, res, next) => {
+    if (demoOnly && !demoMode()) {
+      return res.status(403).json({ success: false, message: "Disabled outside DEMO_MODE" });
+    }
     if (process.env.AUTH_REQUIRED !== "true") return next();
+    const userBlocked = typeof serviceOnly === "function" ? serviceOnly(req) : serviceOnly;
     const deny = (reason, code = 401) => {
       require("../controllers/auditController").recordDenial(req, reason);
       return res.status(code).json({ success: false, message: code === 401 ? "Not authenticated" : "Forbidden" });
@@ -36,7 +49,7 @@ function guard({ scope, serviceOnly = false } = {}) {
     if (!m) return deny("missing token");
     // Pub/Sub push carries a Google-signed token instead of a platform token. Accepted only on
     // service-only (ingest) routes and only when PUBSUB_AUDIENCE is configured.
-    if (serviceOnly && process.env.PUBSUB_AUDIENCE && m[1].split(".").length === 3
+    if (userBlocked && process.env.PUBSUB_AUDIENCE && m[1].split(".").length === 3
         && (() => { try { return JSON.parse(Buffer.from(m[1].split(".")[0], "base64url").toString()).alg === "RS256"; } catch { return false; } })()) {
       return gcp.verifyGoogleOidc(m[1]).then(c => { req.principal = { subject: c.email, kind: "service" }; next(); })
         .catch(e => deny(`invalid google token: ${e.message}`));
@@ -47,12 +60,14 @@ function guard({ scope, serviceOnly = false } = {}) {
       const aud = [].concat(c.aud || []);
       if (!aud.includes("audit")) return deny("wrong audience", 403);
       if (scope && !String(c.scope || "").split(" ").includes(scope)) return deny("insufficient scope", 403);
-    } else if (serviceOnly) {
+    } else if (userBlocked) {
       return deny("user token on service-only route", 403);
+    } else if (role && ![].concat(c.roles || []).includes(role)) {
+      return deny(`missing role ${role}`, 403);
     }
-    req.principal = { subject: c.sub, kind: c.typ === "service" ? "service" : "user" };
+    req.principal = { subject: c.sub, kind: c.typ === "service" ? "service" : "user", roles: [].concat(c.roles || []) };
     next();
   };
 }
 
-module.exports = { guard, verify };
+module.exports = { guard, verify, demoMode };

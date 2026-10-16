@@ -23,6 +23,8 @@ from auth.security import (
     create_access_token,
     get_jwt_secret,
     hash_password,
+    roles_for,
+    validate_service_clients,
     verify_password,
 )
 from service.contracts import (
@@ -49,6 +51,7 @@ async def lifespan(_app: FastAPI):
     # Validate the secret at STARTUP, not on the first login. A service that boots happily
     # and only fails when a user tries to sign in is much harder to diagnose.
     get_jwt_secret()
+    validate_service_clients()
     init_db()
     logger.info("platform service ready")
     yield
@@ -176,7 +179,8 @@ def me(user: User = Depends(get_current_user)) -> UserResponse:
 
 def _token_for(user: User) -> TokenResponse:
     return TokenResponse(
-        access_token=create_access_token(subject=str(user.id), extra_claims={"email": user.email}),
+        access_token=create_access_token(
+            subject=str(user.id), extra_claims={"email": user.email, "roles": roles_for(user.email)}),
         expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         user=UserResponse.model_validate(user),
     )

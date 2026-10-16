@@ -4,6 +4,8 @@ import urllib.request
 
 from langchain_core.tools import tool
 
+from caller_context import auth_headers
+
 FRAUD_URL = os.environ.get("FRAUD_URL", "http://localhost:8001")
 
 
@@ -17,7 +19,7 @@ def check_scam_message(message_text: str) -> str:
     req = urllib.request.Request(
         f"{FRAUD_URL}/shield/check",
         json.dumps({"text": message_text}).encode(),
-        {"Content-Type": "application/json"},
+        {"Content-Type": "application/json", **auth_headers()},
     )
     try:
         with urllib.request.urlopen(req, timeout=20) as r:

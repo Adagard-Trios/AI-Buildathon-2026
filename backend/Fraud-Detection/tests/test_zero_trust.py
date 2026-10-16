@@ -89,3 +89,13 @@ def test_campaigns_institution_only_and_grouping(c):
     assert c.get("/odata/v1/fraud/Campaigns", headers=tok()).status_code == 403
     inst = tok(typ="service", aud=["fraud"], scope="campaigns.read")
     assert c.get("/odata/v1/fraud/Campaigns", headers=inst).status_code == 200
+
+
+def test_stepup_is_bound_to_the_signed_in_user(c, monkeypatch):
+    monkeypatch.setenv("DEMO_MODE", "true")
+    ch = c.post("/step-up/challenge", json={"transaction_id": "t", "user_id": "u_1001"}, headers=tok(sub="1")).json()
+    # another account holding the id AND the code still cannot satisfy it
+    other = c.post("/step-up/verify", json={"challenge_id": ch["challenge_id"], "code": ch["demo_code"]}, headers=tok(sub="2"))
+    assert other.json() == {"verified": False, "reason": "challenge expired, used up or unknown"}
+    mine = c.post("/step-up/verify", json={"challenge_id": ch["challenge_id"], "code": ch["demo_code"]}, headers=tok(sub="1"))
+    assert mine.json()["verified"] is True and mine.json()["user_id"] == "u_1001"

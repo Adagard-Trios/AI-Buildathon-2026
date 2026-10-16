@@ -250,3 +250,27 @@ def test_client_credentials_scopes_and_audience(client, monkeypatch) -> None:
                  {"client_id": "nobody", "client_secret": "s3cret-value", "audience": "fraud"},
                  {"client_id": "bank", "client_secret": "s3cret-value", "audience": "fraud", "scope": "admin"}):
         assert client.post("/auth/token", json=body).status_code == 401
+
+
+def test_roles_come_only_from_deployment_config(client, monkeypatch) -> None:
+    """Roles are granted by PLATFORM_ROLES, never by the client, and unknown names are dropped."""
+    import jwt as pyjwt
+
+    monkeypatch.setenv("PLATFORM_ROLES", "Rev@Example.com:auditor superuser;other@example.com:admin")
+    body = {"display_name": "R", "password": "a-good-long-passphrase"}
+    rev = client.post("/auth/register", json={**body, "email": "rev@example.com", "roles": ["admin"]})
+    plain = client.post("/auth/register", json={**body, "email": "plain@example.com"})
+    roles = lambda r: pyjwt.decode(r.json()["access_token"], options={"verify_signature": False})["roles"]  # noqa: E731
+    assert roles(rev) == ["auditor"]       # case-insensitive match; "superuser" and the body's "admin" ignored
+    assert roles(plain) == []
+
+
+@pytest.mark.parametrize("value", ["fraud:<fraud-secret>:audit.write", "fraud:short:audit.write", ":" + "x" * 40 + ":s"])
+def test_placeholder_service_client_secrets_refuse_startup(monkeypatch, value) -> None:
+    from auth.security import validate_service_clients
+
+    monkeypatch.setenv("SERVICE_CLIENTS", value)
+    with pytest.raises(RuntimeError):
+        validate_service_clients()
+    monkeypatch.setenv("SERVICE_CLIENTS", "fraud:" + "x" * 40 + ":audit.write")
+    validate_service_clients()
