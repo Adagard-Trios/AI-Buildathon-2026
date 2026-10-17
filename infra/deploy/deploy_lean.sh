@@ -118,11 +118,14 @@ EOF
 # run <name> <image> <port> <memory> <min> <max> <env> [secrets]
 # Public ingress: the browser calls each service directly, and every service enforces the
 # platform's RS256 tokens itself (AUTH_REQUIRED=true), so IAM-gating would only break the app.
+# Env lists below are written "K=V@K=V". A value that itself holds "@" (an email address in
+# PLATFORM_ROLES) writes it as %40; this turns the list into gcloud's "~"-delimited form.
+envlist() { local e="${1//@/\~}"; echo "${e//%40/@}"; }
 run() {
   g run deploy "firststep-$1" --region "$REGION" --image "$2" --service-account "$RUN_SA" \
     --allow-unauthenticated --port "$3" --memory "$4" --cpu 1 --min-instances "$5" --max-instances "$6" \
     --cpu-boost --timeout 300 \
-    --set-env-vars "^@^$7" ${8:+--set-secrets "$8"}
+    --set-env-vars "^~^$(envlist "$7")" ${8:+--set-secrets "$8"}
 }
 
 COMMON="AUTH_REQUIRED=true@DEMO_MODE=true@ALLOWED_ORIGINS=${WEB_URL}@PLATFORM_URL=${PLATFORM_URL}@PLATFORM_JWKS_URL=${JWKS}@AUDIT_URL=${C3_URL}@GEMINI_MODEL=${GEMINI_MODEL}"
@@ -132,7 +135,7 @@ deploy_platform() {
   # min 1 / max 1: users live in SQLite on the instance's disk. One instance means one
   # database; keeping it warm means accounts survive idle periods (lost only on redeploy).
   run platform "$img" 8100 512Mi 1 1 \
-    "ALLOWED_ORIGINS=${WEB_URL}@DATABASE_URL=sqlite:////tmp/platform.sqlite@PLATFORM_STARTER_PORTFOLIO=true@PLATFORM_ROLES=${PLATFORM_ROLES}@PLATFORM_STAFF_PASSWORD=${PLATFORM_STAFF_PASSWORD}" \
+    "ALLOWED_ORIGINS=${WEB_URL}@DATABASE_URL=sqlite:////tmp/platform.sqlite@PLATFORM_STARTER_PORTFOLIO=true@PLATFORM_ROLES=${PLATFORM_ROLES//@/%40}@PLATFORM_STAFF_PASSWORD=${PLATFORM_STAFF_PASSWORD}" \
     "PLATFORM_SIGNING_KEY=firststep-signing-key:latest,SERVICE_CLIENTS=firststep-service-clients:latest"
 }
 deploy_c3() {
