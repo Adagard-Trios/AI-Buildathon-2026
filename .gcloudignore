@@ -1,0 +1,22 @@
+# Files Cloud Build does not need. Keeps `gcloud builds submit` uploads small.
+.git/
+.gitignore
+.claude/
+.env
+**/node_modules/
+**/.venv/
+**/venv/
+**/__pycache__/
+**/*.py[cod]
+**/.next/
+**/*.ipynb
+**/*.pem
+**/*.key
+mobile/
+docs/
+eval/
+backend/Portfolio-Optimization/artifacts/
+backend/Portfolio-Optimization/experiments/
+backend/Blockchain-Auditability/blockchain/
+backend/Blockchain-Auditability/frontend/
+frontend/e2e/

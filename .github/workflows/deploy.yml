@@ -1,0 +1,90 @@
+# Deploys to Cloud Run on every push to main, rebuilding only the services whose folders
+# changed. Auth is keyless (Workload Identity Federation, see infra/deploy/setup_github_deploy.sh),
+# and Google only accepts tokens from this repository's main branch.
+#
+# Run it by hand from the Actions tab ("Run workflow" on main) to redeploy specific services,
+# e.g. "c2 frontend", or "all".
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      targets:
+        description: 'Services to deploy: all, or any of "platform c3 c2 c1 c4 frontend"'
+        required: true
+        default: all
+
+permissions:
+  contents: read
+  id-token: write   # to exchange GitHub's OIDC token for Google credentials
+
+# One deploy at a time; a newer push waits rather than racing the running one.
+concurrency:
+  group: deploy-cloud-run
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: firststep-buildathon
+  REGION: us-central1
+  SKIP_SETUP: "1"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Pick services to deploy
+        id: pick
+        env:
+          INPUT_TARGETS: ${{ inputs.targets }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          all="platform c3 c2 c1 c4 frontend"
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            req="$INPUT_TARGETS"; [ "$req" = all ] && req="$all"
+            for t in $req; do
+              case " $all " in *" $t "*) ;; *) echo "::error::unknown service '$t'"; exit 1;; esac
+            done
+            echo "targets=$req" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ -z "$BEFORE" ] || ! git cat-file -e "$BEFORE" 2>/dev/null; then
+            echo "targets=$all" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          changed="$(git diff --name-only "$BEFORE" "$GITHUB_SHA")"
+          echo "$changed"
+          has() { echo "$changed" | grep -q "^$1"; }
+          # Shared code and the deploy tooling affect every service.
+          if has shared/ || has infra/; then echo "targets=$all" >> "$GITHUB_OUTPUT"; exit 0; fi
+          t=""
+          has backend/Platform/                      && t="$t platform"
+          has backend/Blockchain-Auditability/backend/ && t="$t c3"
+          has backend/Fraud-Detection/               && t="$t c2"
+          has backend/Portfolio-Optimization/        && t="$t c1"
+          has backend/Agentic-Assistance/            && t="$t c4"
+          has frontend/                              && t="$t frontend"
+          echo "targets=${t# }" >> "$GITHUB_OUTPUT"
+
+      - name: Nothing to deploy
+        if: steps.pick.outputs.targets == ''
+        run: echo "No deployable service changed in this push."
+
+      - uses: google-github-actions/auth@v2
+        if: steps.pick.outputs.targets != ''
+        with:
+          workload_identity_provider: projects/214625202650/locations/global/workloadIdentityPools/github/providers/github
+          service_account: firststep-deployer@firststep-buildathon.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v2
+        if: steps.pick.outputs.targets != ''
+
+      - name: Deploy ${{ steps.pick.outputs.targets }}
+        if: steps.pick.outputs.targets != ''
+        env:
+          TARGETS: ${{ steps.pick.outputs.targets }}
+        run: bash infra/deploy/deploy_lean.sh $TARGETS

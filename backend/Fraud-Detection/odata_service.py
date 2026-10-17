@@ -6,8 +6,11 @@ import sys
 from pathlib import Path
 
 # Shared library: repo checkout path, or the compose bind-mount.
-for _p in (Path(__file__).resolve().parents[2] / "shared" / "odata", Path("/app/shared_odata"),
-           Path(__file__).resolve().parents[2] / "shared" / "auth", Path("/app/shared_auth")):
+# Inside a container the file sits at /app/..., with no repo checkout 2 levels up.
+_up = Path(__file__).resolve().parents
+_repo_root = _up[2] if len(_up) > 2 else Path("/nonexistent")
+for _p in (_repo_root / "shared" / "odata", Path("/app/shared_odata"),
+           _repo_root / "shared" / "auth", Path("/app/shared_auth")):
     if _p.is_dir():
         sys.path.insert(0, str(_p))
 
