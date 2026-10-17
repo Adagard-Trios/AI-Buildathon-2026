@@ -30,19 +30,26 @@ to depend on another team's service to find out.
 
 ```bash
 cp .env.example .env
-python -c "import secrets; print(secrets.token_urlsafe(48))"   # paste into .env
-docker compose up --build
+# fill SERVICE_CLIENTS and the *_CLIENT_ID / *_CLIENT_SECRET pairs (32+ random characters each):
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+docker compose up --build                     # BIND_ADDR=0.0.0.0 to reach it from a phone
 ```
 
-Then open <http://localhost:3000>, register, and create a portfolio.
+Then open <http://localhost:3000>, register, and create a portfolio. Tokens are RS256: the
+platform creates its signing key on first start and the others read its JWKS, so there is no
+shared secret to configure.
 
-Without Docker, in three terminals:
+Without Docker, in three terminals (RS256, same as compose):
 
 ```bash
-cd backend/Platform               && JWT_SECRET=... uv run uvicorn service.api:app --port 8100
-cd backend/Portfolio-Optimization && JWT_SECRET=... AUTH_REQUIRED=true uv run uvicorn service.api:app --port 8000
+cd backend/Platform               && PLATFORM_SIGNING_KEY_FILE=artifacts/signing_key.pem PLATFORM_SIGNING_KEY_AUTOGEN=true uv run uvicorn service.api:app --port 8100
+cd backend/Portfolio-Optimization && PLATFORM_JWKS_URL=http://localhost:8100/.well-known/jwks.json uv run uvicorn service.api:app --port 8000
 cd frontend                       && npm run dev
 ```
+
+Auth is on by default everywhere; only an explicit `AUTH_REQUIRED=false` turns it off (the
+unit suites do this in their conftest). A service with auth on and no key configured
+answers 500 rather than letting requests through.
 
 ## Adding your component
 

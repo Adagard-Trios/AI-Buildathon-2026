@@ -150,6 +150,7 @@ def build_decision_event(
     request_payload: dict[str, Any],
     response_payload: dict[str, Any],
     model_version: str,
+    owner: str | None = None,
 ) -> dict[str, Any]:
     """Wrap a decision in the envelope Components 3 and 4 consume.
 
@@ -166,6 +167,10 @@ def build_decision_event(
         "model_version": model_version,
         "policy_version": None,
         "principal": None,
+        # The authenticated user the decision was made for. Inside the hashed envelope, so
+        # Component 3 can scope reads to it and nobody can re-assign it without breaking
+        # verification.
+        "owner": owner,
         "request": request_payload,
         "response": response_payload,
     }
@@ -236,9 +241,10 @@ def publish_decision(
     request_payload: dict[str, Any],
     response_payload: dict[str, Any],
     model_version: str,
+    owner: str | None = None,
 ) -> dict[str, Any]:
     """Build and fire an event. Returns the envelope so the caller can log or assert on it."""
-    event = build_decision_event(decision_type, request_payload, response_payload, model_version)
+    event = build_decision_event(decision_type, request_payload, response_payload, model_version, owner)
     get_producer().publish(event, key=event["event_type"])
     post_to_audit(event)
     return event

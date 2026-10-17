@@ -50,7 +50,14 @@ logger = logging.getLogger(__name__)
 async def lifespan(_app: FastAPI):
     # Validate the secret at STARTUP, not on the first login. A service that boots happily
     # and only fails when a user tries to sign in is much harder to diagnose.
-    get_jwt_secret()
+    from auth import signing
+
+    # Fail at STARTUP on a bad key or secret, not on the first login. In RS256 mode the
+    # shared secret is not needed at all: no other service should hold anything that mints.
+    if signing.asymmetric():
+        logger.info("issuing RS256 tokens, kid=%s", signing.key_id())
+    else:
+        get_jwt_secret()
     validate_service_clients()
     init_db()
     logger.info("platform service ready")
@@ -91,6 +98,14 @@ def health(session: Session = Depends(get_session)) -> HealthResponse:
 # --------------------------------------------------------------------------------------
 # Auth
 # --------------------------------------------------------------------------------------
+
+@app.get("/.well-known/jwks.json")
+def jwks() -> dict:
+    """Public keys for verifying platform tokens (RFC 7517). Empty in legacy HS256 mode."""
+    from auth import signing
+
+    return signing.jwks()
+
 
 @app.post("/auth/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def register(request: RegisterRequest, session: Session = Depends(get_session)) -> TokenResponse:
@@ -163,12 +178,16 @@ def client_token(req: ClientCredentials) -> dict:
         if ok:
             granted = set(scopes.split())
     asked = set(req.scope.split())
-    if granted is None or not asked <= granted:
+    # The app audience is reserved for user sessions: a machine identity can never obtain one.
+    if granted is None or not asked <= granted or not req.audience.split() or "firststep-app" in req.audience.split():
         raise HTTPException(status_code=401, detail="invalid_client",
                             headers={"WWW-Authenticate": "Bearer"})
     return {"access_token": create_access_token(
                 subject=req.client_id, expires_minutes=15,
-                extra_claims={"typ": "service", "aud": [req.audience], "scope": " ".join(sorted(asked))}),
+                # Space-separated audiences: an external system calling through the OData gateway
+                # asks for "gateway fraud", because each hop re-verifies that it is addressed.
+                extra_claims={"typ": "service", "aud": sorted(set(req.audience.split())),
+                              "scope": " ".join(sorted(asked))}),
             "token_type": "bearer", "expires_in": 900}
 
 

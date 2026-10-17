@@ -29,14 +29,30 @@ def _campaigns(request):
     return campaigns(list(VERDICTS))
 
 
+def visible_decisions(request, entries: list) -> list:
+    """Row-level authorisation for transfer decisions, applied BEFORE any OData query option.
+
+    A customer sees only their own transfers. Seeing everyone's needs a service identity with
+    fraud.read (a bank's back office, a regulator). Without auth (local demo) nothing is hidden.
+    """
+    if not auth_required():
+        return entries
+    p = getattr(request.state, "principal", None)
+    if p is None:
+        return []
+    if p.kind == "service":
+        return entries if "fraud.read" in p.scopes else []
+    return [e for e in entries if str(e.get("user_id")) == str(p.subject)]
+
+
 def build_router(audit):
-    def decisions(_request):
+    def decisions(request):
         return [
             {"Id": e["transaction_id"], "UserId": e["user_id"], "Action": e["decision"],
              "RiskScore": e["risk_score"], "BehaviouralScore": e["behavioral_score"],
              "RelationalScore": e["graph_score"], "Reason": e["reason"],
              "AttackType": e["attack_type"], "CreatedAt": e["timestamp"]}
-            for e in audit.recent(10_000)
+            for e in visible_decisions(request, audit.recent(10_000))
         ]
 
     sets = [

@@ -14,11 +14,16 @@ from zt_auth import service_token
 
 
 def build_event(event_type: str, request: dict, response: dict, *, model_version: str,
-                policy_version: str, principal: str | None = None) -> dict:
-    return {"event_id": str(uuid.uuid4()), "event_type": event_type, "schema_version": "1.0",
+                policy_version: str, principal: str | None = None, event_id: str | None = None,
+                owner: str | None = None) -> dict:
+    """event_id: pass the decision's own id when the customer holds it (a Scam Shield verdict),
+    so Component 3 anchors it under an id the customer can later verify."""
+    return {"event_id": event_id or str(uuid.uuid4()), "event_type": event_type, "schema_version": "1.0",
             "component": "c2", "occurred_at": datetime.now(timezone.utc).isoformat(),
             "model_version": model_version, "policy_version": policy_version,
-            "principal": principal, "request": request, "response": response}
+            "principal": principal,
+            # The authenticated user the decision belongs to; Component 3 scopes reads to it.
+            "owner": owner, "request": request, "response": response}
 
 
 def publish(event: dict) -> None:

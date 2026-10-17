@@ -59,12 +59,12 @@ son gets an alert."
 
 **Shot:** Portfolio screen with her holdings (pre-loaded, or imported from a statement photo
 if the Gemini import is working on the deployed build). Withdraw: *Rs 300,000 by March*. Plan
-result: day-by-day sell schedule, the cost compared with selling everything at once, and the
+result: day-by-day sell schedule, the cost compared with selling an equal slice of everything (the naive pro-rata baseline C1 costs alongside it), and the
 TimesFM p10/p50/p90 forecast bands.
 
 **VO:** "A month later she needs three hundred thousand rupees for school fees by March. Gemini
 reads her broker statement. TimesFM forecasts each share, and a liquidity-aware optimiser
-spreads the sales so she loses less than she would by selling everything on day one. If the
+spreads the sales so she loses less than she would by selling a bit of everything at once. If the
 target can't be met, it tells her how much can be raised. It never pretends."
 
 **Caption:** `TimesFM forecast bands · MOEA/D liquidity-aware plan · infeasible plans reported, not hidden`

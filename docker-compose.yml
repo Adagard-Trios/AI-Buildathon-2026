@@ -2,9 +2,15 @@
 #
 #   docker compose up --build      then open http://localhost:3000
 #
-# Components 2-4 are reserved below as commented blocks so a teammate uncomments rather than
-# redesigns. Ports are assigned by convention: 8000 + component number, with the shared
-# platform service on 8100.
+# Ports are assigned by convention: 8000 + component number, the shared platform service on
+# 8100 and the OData gateway on 8080.
+#
+# Network exposure (zero trust: being on the network grants nothing, and nothing is reachable
+# that does not need to be):
+#   * Host ports bind to ${BIND_ADDR:-127.0.0.1}: only this machine reaches the stack. To test
+#     the mobile app from a phone on the same Wi-Fi, run with BIND_ADDR=0.0.0.0.
+#   * Kafka sits on the internal "bus" network with only Component 1 attached, and publishes
+#     no host port. MLflow is bound to 127.0.0.1 regardless of BIND_ADDR.
 
 services:
   # --- shared services ------------------------------------------------------------------
@@ -12,12 +18,13 @@ services:
     build:
       context: ./backend/Platform
     ports:
-      - "8100:8100"
+      - "${BIND_ADDR:-127.0.0.1}:8100:8100"
     environment:
-      # Shared with every component so each can VERIFY tokens this service ISSUES, without
-      # calling back here on each request. The service refuses to start if it is unset,
-      # short, or still the placeholder from .env.example.
-      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in a repo-root .env — see .env.example}
+      # RS256: this is the ONLY service that can mint tokens. The private key is generated on
+      # first start into the platform_data volume and never leaves it; every other component
+      # verifies with the public key at /.well-known/jwks.json. No shared secret exists.
+      PLATFORM_SIGNING_KEY_FILE: /app/artifacts/signing_key.pem
+      PLATFORM_SIGNING_KEY_AUTOGEN: "true"
       ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
       DATABASE_URL: sqlite:////app/artifacts/platform.sqlite
       # Machine identities, "id:secret:scope1 scope2;id2:...". Required: with auth on, a component
@@ -35,13 +42,13 @@ services:
       context: ./backend/Portfolio-Optimization
       dockerfile: docker/Dockerfile
     ports:
-      - "8000:8000"
+      - "${BIND_ADDR:-127.0.0.1}:8000:8000"
     environment:
       AUDIT_URL: http://component3:8002
       PLATFORM_URL: http://platform:8100
       SERVICE_CLIENT_ID: ${PORTFOLIO_CLIENT_ID:?set PORTFOLIO_CLIENT_ID in .env}
       SERVICE_CLIENT_SECRET: ${PORTFOLIO_CLIENT_SECRET:?set PORTFOLIO_CLIENT_SECRET in .env}
-      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in a repo-root .env}
+      PLATFORM_JWKS_URL: http://platform:8100/.well-known/jwks.json   # verify only; nothing here can mint
       AUTH_REQUIRED: "true"
       ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
@@ -52,6 +59,7 @@ services:
       # The model registry lives here; Component 3 anchors model_version on-chain, so a
       # version that vanished on restart would break its provenance chain.
       - ./backend/Portfolio-Optimization/artifacts:/app/artifacts
+    networks: [default, bus]
     depends_on:
       kafka:
         condition: service_healthy
@@ -66,8 +74,11 @@ services:
         # compose service names, which only resolve inside the network.
         NEXT_PUBLIC_PLATFORM_URL: http://localhost:8100
         NEXT_PUBLIC_PORTFOLIO_URL: http://localhost:8000
+        NEXT_PUBLIC_FRAUD_URL: http://localhost:8001
+        NEXT_PUBLIC_AUDIT_URL: http://localhost:8002
+        NEXT_PUBLIC_ASSISTANT_URL: http://localhost:8003
     ports:
-      - "3000:3000"
+      - "${BIND_ADDR:-127.0.0.1}:3000:3000"
     depends_on:
       - platform
       - component1
@@ -83,15 +94,16 @@ services:
     # Apache takes plain Kafka property names (KAFKA_NODE_ID), Bitnami infixed them
     # (KAFKA_CFG_NODE_ID), so this is the same broker described in the other dialect.
     image: apache/kafka:3.7.2
-    ports:
-      - "9094:9094"
+    # No host port and no external listener: only services on the internal "bus" network
+    # (Component 1) can reach the broker.
+    networks: [bus]
     environment:
       KAFKA_NODE_ID: "0"
       KAFKA_PROCESS_ROLES: controller,broker
       KAFKA_CONTROLLER_QUORUM_VOTERS: 0@kafka:9093
-      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
@@ -114,14 +126,46 @@ services:
 
   mlflow:
     image: ghcr.io/mlflow/mlflow:v2.16.2
+    # The tracking UI has no authentication, so it is never exposed beyond this machine.
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5000:5000"
     command: >
       mlflow server --host 0.0.0.0 --port 5000
       --backend-store-uri sqlite:////mlruns/mlflow.db
       --default-artifact-root /mlruns/artifacts
     volumes:
       - ./backend/Portfolio-Optimization/artifacts/mlruns:/mlruns
+    restart: unless-stopped
+
+  gateway:
+    # The single entry point for EXTERNAL systems (core banking, BI tools, regulators): OData
+    # routing to every component, token verified here and again by each service (the
+    # caller's Authorization header is forwarded unchanged; no implicit trust between hops).
+    image: python:3.12-slim
+    working_dir: /app
+    volumes:
+      - ./backend/Gateway:/app
+      - ./shared/odata:/app/shared_odata:ro
+      - ./shared/auth:/app/shared_auth:ro
+    command: >
+      sh -c "pip install --quiet --no-cache-dir -r requirements.txt &&
+             uvicorn main:app --host 0.0.0.0 --port 8080"
+    ports: ["${BIND_ADDR:-127.0.0.1}:8080:8080"]
+    environment:
+      PLATFORM_JWKS_URL: http://platform:8100/.well-known/jwks.json   # verify only; nothing here can mint
+      AUTH_REQUIRED: "true"
+      AUDIT_URL: http://component3:8002
+      UPSTREAM_PLATFORM: http://platform:8100
+      UPSTREAM_PORTFOLIO: http://component1:8000
+      UPSTREAM_FRAUD: http://component2:8001
+      UPSTREAM_AUDIT: http://component3:8002
+      UPSTREAM_ASSISTANT: http://component4:8003
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8080/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
     restart: unless-stopped
 
   # --- teammates' components ---------------------------------------------------------------
@@ -144,10 +188,10 @@ services:
     command: >
       sh -c "pip install --quiet --no-cache-dir -r requirements.txt &&
              uvicorn app:app --host 0.0.0.0 --port 8001"
-    ports: ["8001:8001"]
+    ports: ["${BIND_ADDR:-127.0.0.1}:8001:8001"]
     environment:
       ALLOWED_ORIGINS: http://localhost:3000
-      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in a repo-root .env}
+      PLATFORM_JWKS_URL: http://platform:8100/.well-known/jwks.json   # verify only; nothing here can mint
       AUTH_REQUIRED: "true"
       AUDIT_URL: http://component3:8002      # denials are anchored by Component 3
       PLATFORM_URL: http://platform:8100
@@ -173,11 +217,11 @@ services:
     # PORT is read from the environment by its index.js, so it runs on 8002 without any
     # change to the source.
     command: sh -c "npm install --silent && node src/index.js"
-    ports: ["8002:8002"]
+    ports: ["${BIND_ADDR:-127.0.0.1}:8002:8002"]
     environment:
       PORT: "8002"
       DEMO_MODE: "true"   # enables the Tamper action; must be false in production
-      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in a repo-root .env}
+      PLATFORM_JWKS_URL: http://platform:8100/.well-known/jwks.json   # verify only; nothing here can mint
       AUTH_REQUIRED: "true"
       ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
     healthcheck:
@@ -201,14 +245,14 @@ services:
     command: >
       sh -c "pip install --quiet --no-cache-dir -r requirements.txt &&
              uvicorn main:app --host 0.0.0.0 --port 8003"
-    ports: ["8003:8003"]
+    ports: ["${BIND_ADDR:-127.0.0.1}:8003:8003"]
     environment:
       ALLOWED_ORIGINS: http://localhost:3000
       # The agent talks to OLLAMA, not OpenAI -- agent.py uses ChatOllama. Inside a
       # container "localhost" is the container, so it has to be pointed at the host
       # explicitly or every chat call fails with a connection error.
       OLLAMA_HOST: http://host.docker.internal:11434
-      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in a repo-root .env}
+      PLATFORM_JWKS_URL: http://platform:8100/.well-known/jwks.json   # verify only; nothing here can mint
       AUTH_REQUIRED: "true"
       FRAUD_URL: http://component2:8001
       AUDIT_URL: http://component3:8002      # denials are anchored by Component 3
@@ -226,6 +270,12 @@ services:
       retries: 10
       start_period: 120s
     restart: unless-stopped
+
+networks:
+  # Internal: no route to the host or the internet, so the plaintext broker is unreachable
+  # from anything but the services explicitly attached.
+  bus:
+    internal: true
 
 volumes:
   platform_data:

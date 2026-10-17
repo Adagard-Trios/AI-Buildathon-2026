@@ -274,3 +274,14 @@ def test_placeholder_service_client_secrets_refuse_startup(monkeypatch, value) -
         validate_service_clients()
     monkeypatch.setenv("SERVICE_CLIENTS", "fraud:" + "x" * 40 + ":audit.write")
     validate_service_clients()
+
+
+def test_client_credentials_multiple_audiences_but_never_the_app(client, monkeypatch) -> None:
+    import jwt as pyjwt
+
+    monkeypatch.setenv("SERVICE_CLIENTS", "bank:" + "b" * 40 + ":fraud.read")
+    base = {"client_id": "bank", "client_secret": "b" * 40, "scope": "fraud.read"}
+    ok = client.post("/auth/token", json={**base, "audience": "gateway fraud"})
+    assert pyjwt.decode(ok.json()["access_token"], options={"verify_signature": False})["aud"] == ["fraud", "gateway"]
+    assert client.post("/auth/token", json={**base, "audience": "firststep-app"}).status_code == 401
+    assert client.post("/auth/token", json={**base, "audience": " "}).status_code == 401

@@ -91,16 +91,19 @@ def test_unlisted_origin_is_not_granted_access(client: TestClient) -> None:
 # Optional auth
 # --------------------------------------------------------------------------------------
 
-def test_auth_is_off_by_default(monkeypatch) -> None:
-    """The existing 338 tests call these endpoints unauthenticated and must keep passing."""
+def test_auth_is_on_by_default(monkeypatch) -> None:
+    """Fail closed: with AUTH_REQUIRED unset, enforcement is on. The suite opts out in conftest."""
     monkeypatch.delenv("AUTH_REQUIRED", raising=False)
-    assert auth_required() is False
+    assert auth_required() is True
+    monkeypatch.setenv("AUTH_REQUIRED", "false")
     assert require_user(credentials=None) is None
 
 
 @pytest.mark.parametrize("value,expected", [
     ("true", True), ("1", True), ("yes", True), ("on", True), ("TRUE", True),
-    ("false", False), ("0", False), ("", False), ("maybe", False),
+    ("false", False), ("0", False), ("off", False), ("NO", False),
+    # anything that is not an explicit "off" keeps enforcement on
+    ("", True), ("maybe", True), ("ture", True),
 ])
 def test_auth_required_parsing(monkeypatch, value: str, expected: bool) -> None:
     monkeypatch.setenv("AUTH_REQUIRED", value)
@@ -183,3 +186,47 @@ def test_withdraw_still_works_unauthenticated_when_auth_is_off(client: TestClien
     )
     assert response.status_code == 200
     assert response.json()["feasible"] is True
+
+
+# --------------------------------------------------------------------------------------
+# RS256: verify with the platform's PUBLIC key only
+# --------------------------------------------------------------------------------------
+
+def _rsa():
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    pub = key.public_key().public_bytes(serialization.Encoding.PEM,
+                                        serialization.PublicFormat.SubjectPublicKeyInfo).decode()
+    return key, pub
+
+
+def _rs_token(key, **claims):
+    now = int(time.time())
+    base = {"sub": "42", "iat": now, "exp": now + 600, "iss": "firststep-platform", "aud": ["firststep-app"]}
+    return jwt.encode({**base, **claims}, key, algorithm="RS256")
+
+
+def test_rs256_mode_accepts_platform_tokens_and_refuses_everything_else(monkeypatch) -> None:
+    from fastapi import HTTPException
+    from fastapi.security import HTTPAuthorizationCredentials
+
+    key, pub = _rsa()
+    other, _ = _rsa()
+    monkeypatch.setenv("AUTH_REQUIRED", "true")
+    monkeypatch.setenv("PLATFORM_PUBLIC_KEY", pub)
+    monkeypatch.setenv("JWT_SECRET", SECRET)  # present, but must NOT be accepted in RS256 mode
+
+    def call(tok):
+        return require_user(credentials=HTTPAuthorizationCredentials(scheme="Bearer", credentials=tok))
+
+    assert call(_rs_token(key)).user_id == 42
+    for bad in (_token(42),                                   # HS256 with the right shared secret
+                _rs_token(other),                             # signed by someone else's key
+                _rs_token(key, aud=["audit"]),                # not addressed to the app
+                _rs_token(key, aud=None),                     # no audience at all
+                _rs_token(key, typ="service", aud=["firststep-app", "portfolio"])):  # a machine token
+        with pytest.raises(HTTPException) as excinfo:
+            call(bad)
+        assert excinfo.value.status_code == 401

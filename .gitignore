@@ -20,3 +20,7 @@ node_modules/
 # Local browser-automation artefacts (Colab snapshots, Playwright logs/downloads)
 .playwright-mcp/
 colab_snap*.yml
+
+# Private keys (the platform signing key is generated into artifacts/ on first start)
+*.pem
+*.key

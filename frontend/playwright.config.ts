@@ -79,7 +79,8 @@ export default defineConfig({
           url: "http://localhost:8000/health",
           reuseExistingServer: !process.env.CI,
           timeout: BOOT_TIMEOUT,
-          env: { JWT_SECRET, ALLOWED_ORIGINS: "http://localhost:3000" },
+          // Auth is on by default now; the e2e suite keeps component1 open as it always ran.
+          env: { JWT_SECRET, ALLOWED_ORIGINS: "http://localhost:3000", AUTH_REQUIRED: "false" },
         },
         {
           command: "npm run dev",

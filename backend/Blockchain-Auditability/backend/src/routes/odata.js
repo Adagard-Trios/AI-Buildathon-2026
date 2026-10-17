@@ -3,6 +3,7 @@ const auditService = require("../services/auditService");
 const controller = require("../controllers/auditController");
 const { guard } = require("../middleware/auth");
 const { guards } = require("./auditRoutes");
+const { canSee, visible } = require("../services/visibility");
 
 /**
  * OData v4 surface for Component 3: /odata/v1/audit/ (README 12.3). Same conventions as the
@@ -177,22 +178,27 @@ router.get(/^\/\$metadata$/, (req, res) => {
     + '<ActionImport Name="Tamper" Action="FirstStep.Audit.Tamper"/></EntityContainer></Schema></edmx:DataServices></edmx:Edmx>');
 });
 
-const rows = () => auditService.getAllRecords().map(toRow);
+// Authorised BEFORE any query option is evaluated: $filter can never widen what is visible.
+const rows = req => visible(req.principal, auditService.getAllRecords()).map(toRow);
 
-router.get("/AuditRecords", (req, res) => res.json(applyQuery(rows(), req.query, base(req))));
+router.get("/AuditRecords", (req, res) => res.json(applyQuery(rows(req), req.query, base(req))));
 // A regex, not a path string: "$" is special in Express path patterns.
 router.get(/^\/AuditRecords\/\$count$/, (req, res) => {
-  const all = rows(), hit = req.query.$filter ? all.filter(parseFilter(req.query.$filter)) : all;
+  const all = rows(req), hit = req.query.$filter ? all.filter(parseFilter(req.query.$filter)) : all;
   res.type("text/plain").send(String(hit.length));
 });
 router.get(/^\/AuditRecords\('((?:[^']|'')*)'\)$/, (req, res) => {
-  const id = req.params[0].replace(/''/g, "'"), hit = rows().find(r => r.Id === id);
+  const id = req.params[0].replace(/''/g, "'"), hit = rows(req).find(r => r.Id === id);
   if (!hit) throw new ODataError("Entity not found.", 404, "NotFound");
   res.json({ "@odata.context": `${base(req)}/$metadata#AuditRecords/$entity`, ...hit });
 });
 // Function: Verify(RecordId='...'). It recomputes the hash and compares with the chain.
 router.get(/^\/Verify\(RecordId='((?:[^']|'')*)'\)$/, async (req, res, next) => {
-  try { res.json(await auditService.verifyRecord(req.params[0].replace(/''/g, "'"))); } catch (e) { next(e); }
+  try {
+    const id = req.params[0].replace(/''/g, "'");
+    if (!canSee(req.principal, auditService.getRecord(id))) throw new ODataError("Entity not found.", 404, "NotFound");
+    res.json(await auditService.verifyRecord(id));
+  } catch (e) { next(e); }
 });
 // Actions reuse the controller so policy, hashing and anchoring stay in one place.
 router.post("/Review", guards.review, express.json(), (req, res) => controller.submitHumanReview(

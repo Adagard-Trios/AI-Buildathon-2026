@@ -65,6 +65,12 @@ const auth = (claims, secret) => ({ authorization: `Bearer ${token(claims, secre
   await call(port, "POST", "/odata/v1/audit/Tamper", { body: { RecordId: "a", Field: "riskScore", Value: 1 } });
   assert.strictEqual((await call(port, "GET", "/odata/v1/audit/Verify(RecordId='a')")).body.status, "INTEGRITY_FAILED");
 
+  // Fail closed: unset or a typo enforces; only an explicit "false" opens it.
+  for (const v of [undefined, "", "ture"]) {
+    if (v === undefined) delete process.env.AUTH_REQUIRED; else process.env.AUTH_REQUIRED = v;
+    assert.strictEqual((await call(port, "GET", "/api/audit/records")).status, 401, `AUTH_REQUIRED=${v}`);
+  }
+
   // Zero trust negative suite
   process.env.AUTH_REQUIRED = "true";
   const paths = ["/odata/v1/audit/AuditRecords", "/api/audit/records"];
@@ -81,6 +87,20 @@ const auth = (claims, secret) => ({ authorization: `Bearer ${token(claims, secre
   const ev = { event_id: "z1", event_type: "fraud.transaction", component: "c2", occurred_at: "2026-10-11T00:00:00Z" };
   assert.strictEqual((await call(port, "POST", "/api/audit/events", { headers: auth({}), body: ev })).status, 403, "user token cannot ingest");
   assert.strictEqual((await call(port, "POST", "/api/audit/events", { headers: auth({ typ: "service", aud: ["audit"], scope: "audit.write" }), body: ev })).status, 201);
+  // Row-level reads: a customer sees only records they own; auditors and services see all.
+  const svc = auth({ typ: "service", aud: ["audit"], scope: "audit.write audit.read" });
+  const owned = { event_id: "own-1", event_type: "scam.verdict", component: "c2", occurred_at: "2026-10-17T00:00:00Z", owner: "1" };
+  assert.strictEqual((await call(port, "POST", "/api/audit/events", { headers: svc, body: owned })).status, 201);
+  const ids = async (claims) => (await call(port, "GET", "/api/audit/records", { headers: auth(claims) })).body.records.map(r => r.transactionId);
+  assert.ok((await ids({ sub: "1" })).includes("own-1"), "owner sees it");
+  assert.ok(!(await ids({ sub: "2" })).includes("own-1"), "others do not");
+  assert.ok((await ids({ sub: "2", roles: ["auditor"] })).includes("own-1"), "auditor sees it");
+  assert.strictEqual((await call(port, "GET", "/api/audit/own-1/verify", { headers: auth({ sub: "2" }) })).body.status, "NOT_FOUND", "verify hides it");
+  assert.strictEqual((await call(port, "GET", "/api/audit/own-1/verify", { headers: auth({ sub: "1" }) })).body.status, "VERIFIED");
+  assert.strictEqual((await call(port, "GET", "/odata/v1/audit/AuditRecords('own-1')", { headers: auth({ sub: "2" }) })).status, 404);
+  assert.strictEqual((await call(port, "GET", "/odata/v1/audit/Verify(RecordId='own-1')", { headers: auth({ sub: "2" }) })).status, 404);
+  assert.strictEqual((await call(port, "GET", "/odata/v1/audit/AuditRecords('own-1')", { headers: auth({ sub: "1" }) })).status, 200);
+
   // Authorization, not just authentication: a plain user token must not change the record.
   assert.strictEqual((await call(port, "DELETE", "/api/audit/records", { headers: auth({}) })).status, 403, "user cannot wipe");
   assert.strictEqual((await call(port, "POST", "/api/audit/reset", { headers: auth({}) })).status, 403, "user cannot reset");

@@ -16,4 +16,4 @@ pydantic>=2.7,<3.0      # request validation and response schemas
 # These are deliberately NOT installed here; see fraud_model.py for the
 # extension points.
 
-pyjwt>=2.8,<3.0         # zero-trust token verification (shared/auth/zt_auth.py)
+pyjwt[crypto]>=2.8,<3.0         # zero-trust token verification (shared/auth/zt_auth.py)

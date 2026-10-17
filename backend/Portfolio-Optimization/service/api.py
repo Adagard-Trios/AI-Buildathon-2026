@@ -296,8 +296,10 @@ def optimize_portfolio(
         generated_at=_now(),
     )
 
-    publish_decision("optimize", request.model_dump(mode="json"),
-                     response.model_dump(mode="json"), response.model_version)
+    event = publish_decision("optimize", request.model_dump(mode="json"),
+                             response.model_dump(mode="json"), response.model_version,
+                             owner=str(caller.user_id) if caller else None)
+    response.decision_id = event["event_id"]
     return response
 
 
@@ -386,8 +388,11 @@ def withdraw(
                           "decision": decision_meta},
     )
 
-    publish_decision("withdraw", request.model_dump(mode="json"),
-                     response.model_dump(mode="json"), response.model_version)
+    event = publish_decision("withdraw", request.model_dump(mode="json"),
+                             response.model_dump(mode="json"), response.model_version,
+                             owner=str(caller.user_id) if caller else None)
+    # The id Component 3 anchors this plan under, so the customer can verify it later.
+    response.decision_id = event["event_id"]
     odata_c1.record_plan(caller.user_id if caller else None, request.model_dump(mode="json"),
                          response.model_dump(mode="json"))
     return response

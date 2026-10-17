@@ -2,6 +2,7 @@ const policyEngine = require("../services/policyEngine");
 const hashService = require("../services/hashService");
 const blockchainService = require("../services/blockchainService");
 const auditService = require("../services/auditService");
+const { canSee, visible } = require("../services/visibility");
 
 /**
  * Controller handling API requests for AI decision evaluations, human reviews,
@@ -67,6 +68,7 @@ class AuditController {
         // If HUMAN_REVIEW is required, save intermediate state
         const pendingRecord = {
           transactionId: inputData.transactionId,
+          owner: req.principal && req.principal.kind === "user" ? String(req.principal.subject) : null,
           riskScore: inputData.riskScore,
           confidence: inputData.confidence,
           amount: inputData.amount,
@@ -99,6 +101,8 @@ class AuditController {
       // Automated decision (APPROVE or REJECT)
       const auditRecord = {
         transactionId: inputData.transactionId,
+        // Who anchored it (the signed-in user on the demo screen); used for row-level reads.
+        owner: req.principal && req.principal.kind === "user" ? String(req.principal.subject) : null,
         riskScore: inputData.riskScore,
         confidence: inputData.confidence,
         amount: inputData.amount,
@@ -292,6 +296,14 @@ class AuditController {
   async verifyAudit(req, res) {
     try {
       const { transactionId } = req.params;
+      // Someone else's record answers exactly like a missing one: no hint that the id exists.
+      if (!canSee(req.principal, auditService.getRecord(transactionId))) {
+        return res.status(200).json({
+          verified: false,
+          status: "NOT_FOUND",
+          message: `Audit record for transaction ${transactionId} was not found in off-chain database.`
+        });
+      }
       const verificationResult = await auditService.verifyRecord(transactionId);
       return res.status(200).json(verificationResult);
     } catch (err) {
@@ -345,7 +357,7 @@ class AuditController {
    */
   async getRecords(req, res) {
     try {
-      const records = auditService.getAllRecords();
+      const records = visible(req.principal, auditService.getAllRecords());
       return res.status(200).json({ success: true, count: records.length, records });
     } catch (err) {
       return res.status(500).json({ success: false, message: err.message });
@@ -357,7 +369,7 @@ class AuditController {
    */
   async getStats(req, res) {
     try {
-      const records = auditService.getAllRecords();
+      const records = visible(req.principal, auditService.getAllRecords());
       const blockchainStatus = blockchainService.getStatus();
 
       let approved = 0;

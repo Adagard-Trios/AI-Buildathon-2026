@@ -99,3 +99,28 @@ def test_stepup_is_bound_to_the_signed_in_user(c, monkeypatch):
     assert other.json() == {"verified": False, "reason": "challenge expired, used up or unknown"}
     mine = c.post("/step-up/verify", json={"challenge_id": ch["challenge_id"], "code": ch["demo_code"]}, headers=tok(sub="1"))
     assert mine.json()["verified"] is True and mine.json()["user_id"] == "u_1001"
+
+
+def test_customers_only_see_their_own_transfer_decisions(c):
+    tx = {"amount": 1200.0, "location": "Colombo, LK", "device_id": "dev_1"}
+    assert c.post("/score", json={**tx, "user_id": "1"}, headers=tok(sub="1")).status_code == 200
+    assert c.post("/score", json={**tx, "user_id": "2"}, headers=tok(sub="2")).status_code == 200
+    mine = c.get("/odata/v1/fraud/TransactionDecisions", headers=tok(sub="1")).json()["value"]
+    assert mine and {r["UserId"] for r in mine} == {"1"}
+    assert {e["user_id"] for e in c.get("/audit", headers=tok(sub="1")).json()["entries"]} == {"1"}
+    # a back-office service identity with fraud.read sees everyone; without it, nothing
+    everyone = c.get("/odata/v1/fraud/TransactionDecisions", headers=tok(typ="service", aud=["fraud"], scope="fraud.read")).json()["value"]
+    assert {"1", "2"} <= {r["UserId"] for r in everyone}
+    assert c.get("/audit", headers=tok(typ="service", aud=["fraud"], scope="")).json()["entries"] == []
+
+
+def test_decision_events_carry_the_authenticated_owner(c, monkeypatch):
+    import events
+
+    sent = []
+    monkeypatch.setattr(events, "publish", sent.append)
+    c.post("/shield/check", json={"text": "Guaranteed 30% monthly returns, pay now"}, headers=tok(sub="9"))
+    c.post("/score", json={"transaction_id": "tx_abc", "user_id": "u_1001", "amount": 10.0, "location": "Colombo, LK", "device_id": "d"}, headers=tok(sub="9"))
+    assert [e["owner"] for e in sent] == ["9", "9"]
+    assert sent[1]["event_id"] == "tx_abc"
+    assert sent[1]["principal"] == "u_1001"  # the bank customer on the transfer is kept separately

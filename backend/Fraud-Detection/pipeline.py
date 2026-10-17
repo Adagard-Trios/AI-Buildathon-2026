@@ -54,6 +54,7 @@ class FraudPipeline:
         *,
         persist_state: bool = True,
         attack_type: Optional[str] = None,
+        owner: Optional[str] = None,
     ) -> ScoreResponse:
         """Run one transaction through the whole pipeline."""
         tx = transaction.normalised()
@@ -89,7 +90,9 @@ class FraudPipeline:
                 {"transaction_id": tx.transaction_id, "amount": tx.amount, "user_id": tx.user_id},
                 {"action": verdict.action, "risk_score": model_output.risk_score,
                  "rules_fired": list(verdict.rules_fired)},
-                model_version=MODEL_MODE, policy_version=verdict.policy_version, principal=tx.user_id))
+                model_version=MODEL_MODE, policy_version=verdict.policy_version, principal=tx.user_id,
+                # Anchored under the transfer's own id, so the customer's receipt verifies.
+                owner=owner, event_id=tx.transaction_id or None))
 
         return ScoreResponse(
             transaction_id=tx.transaction_id or "unknown",

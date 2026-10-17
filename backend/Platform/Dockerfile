@@ -14,7 +14,7 @@ WORKDIR /app
 COPY pyproject.toml ./
 RUN uv pip install --system \
       fastapi "uvicorn[standard]" pydantic pydantic-settings email-validator \
-      sqlalchemy pyjwt "passlib[argon2]" argon2-cffi python-dotenv
+      sqlalchemy "pyjwt[crypto]" "passlib[argon2]" argon2-cffi python-dotenv
 
 COPY . .
 

@@ -1,55 +1,69 @@
-import json
-from pathlib import Path
-
 from langchain_core.tools import tool
 
-
-DATA_FILE = (
-    Path(__file__).resolve().parent.parent
-    / "data"
-    / "mock_financial_data.json"
-)
-
-
-def load_data():
-    with open(DATA_FILE, "r", encoding="utf-8") as file:
-        return json.load(file)
+from .services import SAMPLE_NOTICE, ServiceError, base_url, get_json, load_sample
 
 
 @tool
-def get_portfolio_analysis(user_id: str = "USER001") -> str:
+def get_portfolio_analysis() -> str:
     """
-    Analyze the user's investment portfolio.
+    Summarise the signed-in user's own portfolios: value, holdings, weights and how
+    many days of normal trading each position would take to sell.
 
-    Use this tool when the user asks about:
-    portfolio performance, portfolio risk, diversification,
-    asset allocation, liquidity, or investment recommendations.
+    Use this tool when the user asks about: their portfolio, holdings, value,
+    concentration, diversification, allocation or liquidity.
     """
+    root = base_url("PLATFORM_URL")
+    if root is None:
+        return _sample()
 
-    data = load_data()
+    try:
+        # The platform returns only the caller's portfolios (the token decides whose).
+        summaries = get_json(f"{root}/portfolios") or []
+        portfolios = [get_json(f"{root}/portfolios/{p['id']}") for p in summaries]
+    except ServiceError as exc:
+        return f"The portfolio service is unavailable ({exc}). Do not state any portfolio figures."
 
-    portfolio = data["portfolio"]
+    portfolios = [p for p in portfolios if p]
+    if not portfolios:
+        return "The user has no saved portfolios yet."
+
+    blocks = []
+    for p in portfolios:
+        holdings = p.get("holdings") or []
+        values = {h["symbol"]: h["quantity"] * h["current_price"] for h in holdings}
+        total = sum(values.values())
+        lines = []
+        for h in sorted(holdings, key=lambda h: -values[h["symbol"]]):
+            weight = 100 * values[h["symbol"]] / total if total else 0.0
+            # avg_daily_volume is average daily traded VALUE (same unit as the position value)
+            days = values[h["symbol"]] / h["avg_daily_volume"] if h.get("avg_daily_volume") else None
+            liq = f"{days:.1f} days of average trading" if days is not None else "liquidity unknown"
+            lines.append(f"- {h['symbol']}: {p['base_currency']} {values[h['symbol']]:,.2f} ({weight:.1f}%), {liq}")
+        top = max(values.values()) / total * 100 if total else 0.0
+        blocks.append(
+            f"Portfolio: {p['name']}\n"
+            f"Total Value: {p['base_currency']} {total:,.2f}\n"
+            f"Holdings: {len(holdings)}\n"
+            f"Largest Position Weight: {top:.1f}%\n"
+            + "\n".join(lines)
+        )
+
+    return "PORTFOLIO SUMMARY\n\n" + "\n\n".join(blocks)
+
+
+def _sample() -> str:
+    portfolio = load_sample()["portfolio"]
     allocation = portfolio["allocation"]
-
     return f"""
-PORTFOLIO ANALYSIS
+{SAMPLE_NOTICE}
 
-User ID: {user_id}
+PORTFOLIO ANALYSIS (SAMPLE)
 
 Total Portfolio Value:
 LKR {portfolio["total_value_lkr"]:,}
 
-Expected Annual Return:
-{portfolio["expected_annual_return"]}%
-
-Risk Score:
-{portfolio["risk_score"]}/100
-
 Risk Level:
 {portfolio["risk_level"]}
-
-Diversification Score:
-{portfolio["diversification_score"]}/100
 
 Liquidity:
 {portfolio["liquidity"]}
@@ -61,11 +75,4 @@ Banking: {allocation["Banking"]}%
 Healthcare: {allocation["Healthcare"]}%
 Government Bonds: {allocation["Government Bonds"]}%
 Cash: {allocation["Cash"]}%
-
-OBSERVATIONS
-
-- Technology exposure is relatively high.
-- Portfolio diversification is moderate.
-- Liquidity is currently high.
-- Overall portfolio risk is moderate.
 """

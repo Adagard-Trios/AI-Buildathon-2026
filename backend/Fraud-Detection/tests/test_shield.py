@@ -59,3 +59,14 @@ def test_benign_message_not_flagged():
 def test_lookalike_link_is_high_risk():
     r = check_message("Click https://combank-secure-login.xyz to continue")
     assert r["level"] == "HIGH_RISK"
+
+
+def test_verdict_is_anchored_under_its_own_id(monkeypatch):
+    """The customer holds the verdict id, so Component 3 must anchor it under that id."""
+    import events
+    from shield.service import check_message
+
+    sent = []
+    monkeypatch.setattr(events, "publish", sent.append)
+    v = check_message("Guaranteed 30% monthly returns! Only 10 slots left, pay now.")
+    assert sent and sent[-1]["event_id"] == v["id"] and sent[-1]["event_type"] == "scam.verdict"

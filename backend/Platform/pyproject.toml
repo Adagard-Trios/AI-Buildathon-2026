@@ -12,7 +12,7 @@ dependencies = [
     "pydantic-settings>=2.5",
     "email-validator>=2.2",          # pydantic EmailStr needs this at runtime
     "sqlalchemy>=2.0",
-    "pyjwt>=2.9",
+    "pyjwt[crypto]>=2.9",           # RS256: the platform signs, everyone else verifies with the public key
     # argon2 rather than bcrypt: it is the current password-hashing recommendation and has
     # no silent 72-byte truncation, which bcrypt does have and which turns a long passphrase
     # into a weaker secret without any error.

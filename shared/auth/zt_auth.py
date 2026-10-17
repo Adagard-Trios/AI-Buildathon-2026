@@ -1,13 +1,17 @@
 """Zero-trust request verification shared by the Python services (README 13).
 
 * Tokens are issued by the platform (users: /auth/login; machines: /auth/token, client
-  credentials) and verified here with the shared JWT_SECRET. One algorithm is pinned.
+  credentials). With PLATFORM_JWKS_URL (or PLATFORM_PUBLIC_KEY) set they are RS256 and
+  verified against the platform's PUBLIC key: this service holds nothing that can mint a
+  token. Without either, legacy HS256 with the shared JWT_SECRET (unit tests). Exactly one
+  algorithm is accepted in each mode, so an HS256 token is refused in RS256 mode.
+* User tokens must be addressed to the first-party app (aud "firststep-app") in RS256 mode.
 * A SERVICE token (typ=service) must name this service in `aud`; a token minted for another
   service is rejected. User tokens carry a user id and are accepted everywhere.
 * Every denial is reported (fire-and-forget) to Component 3, which anchors it on the
   tamper-evident log. Reporting failure never changes the decision.
-* Enforcement follows AUTH_REQUIRED (default off, like Component 1) so existing tests and
-  local demos keep working; compose and production turn it on.
+* Enforcement is ON unless AUTH_REQUIRED is explicitly false/0/no/off (fail closed). Test
+  suites opt out in their conftest; nothing in production can by omission.
 """
 
 from __future__ import annotations
@@ -28,16 +32,43 @@ bearer = HTTPBearer(auto_error=False)
 log = logging.getLogger(__name__)
 
 
+USER_AUDIENCE = "firststep-app"
+
+
 @dataclass(frozen=True)
 class Principal:
     subject: str
     kind: str  # "user" | "service"
     scopes: frozenset = field(default_factory=frozenset)
     email: Optional[str] = None
+    roles: frozenset = field(default_factory=frozenset)
+
+
+_jwks_clients: dict = {}
+
+
+def _verification_key(token: str):
+    """(key, algorithms, asymmetric) for this deployment, or raise LookupError if unconfigured."""
+    pem = os.getenv("PLATFORM_PUBLIC_KEY", "").strip()
+    if pem:
+        return pem, ["RS256"], True
+    url = os.getenv("PLATFORM_JWKS_URL", "").strip()
+    if url:
+        client = _jwks_clients.get(url)
+        if client is None:
+            # Caches keys and refetches on an unknown kid, so platform key rotation just works.
+            client = _jwks_clients[url] = jwt.PyJWKClient(url, cache_keys=True, lifespan=600, timeout=5)
+        return client.get_signing_key_from_jwt(token).key, ["RS256"], True
+    secret = os.getenv("JWT_SECRET", "").strip()
+    if secret:
+        return secret, [ALGORITHM], False
+    raise LookupError("no verification key configured")
 
 
 def auth_required() -> bool:
-    return os.getenv("AUTH_REQUIRED", "false").strip().lower() in {"1", "true", "yes", "on"}
+    # Fail closed: only an explicit "off" disables enforcement. Unset, empty or a typo
+    # ("ture") leaves it ON, so a misconfigured deployment refuses rather than accepts.
+    return os.getenv("AUTH_REQUIRED", "true").strip().lower() not in {"0", "false", "no", "off"}
 
 
 _tok: dict = {}
@@ -106,12 +137,16 @@ def require(service: str, *scopes: str):
             return None
         if credentials is None or not credentials.credentials:
             raise _deny(request, "missing token")
-        secret = os.getenv("JWT_SECRET", "").strip()
-        if not secret:
-            log.error("AUTH_REQUIRED is on but JWT_SECRET is unset; refusing all requests")
-            raise HTTPException(status_code=500, detail="Server auth is misconfigured")
         try:
-            claims = jwt.decode(credentials.credentials, secret, algorithms=[ALGORITHM], issuer=ISSUER,
+            key, algorithms, asymmetric = _verification_key(credentials.credentials)
+        except LookupError:
+            log.error("AUTH_REQUIRED is on but no PLATFORM_JWKS_URL, PLATFORM_PUBLIC_KEY or JWT_SECRET is set")
+            raise HTTPException(status_code=500, detail="Server auth is misconfigured") from None
+        except (jwt.PyJWKClientError, jwt.InvalidTokenError):
+            # unknown kid, unreachable JWKS, or a token too malformed to read its header
+            raise _deny(request, "invalid token") from None
+        try:
+            claims = jwt.decode(credentials.credentials, key, algorithms=algorithms, issuer=ISSUER,
                                 options={"require": ["exp", "iat", "sub"], "verify_aud": False})
         except jwt.ExpiredSignatureError:
             raise _deny(request, "expired token") from None
@@ -126,6 +161,12 @@ def require(service: str, *scopes: str):
             if not set(scopes) <= granted:
                 raise _deny(request, "insufficient scope", status.HTTP_403_FORBIDDEN)
             return Principal(claims["sub"], "service", granted)
-        return Principal(claims["sub"], "user", email=claims.get("email"))
+        aud = claims.get("aud")
+        auds = [aud] if isinstance(aud, str) else (aud or [])
+        # A user token must be meant for the app. Legacy HS256 test tokens carry no aud.
+        if (asymmetric or auds) and USER_AUDIENCE not in auds:
+            raise _deny(request, "user token without the app audience", status.HTTP_403_FORBIDDEN)
+        return Principal(claims["sub"], "user", email=claims.get("email"),
+                         roles=frozenset(str(r) for r in (claims.get("roles") or [])))
 
     return dep

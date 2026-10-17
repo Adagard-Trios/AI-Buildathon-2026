@@ -218,7 +218,7 @@ def test_decision_event_envelope_shape() -> None:
 
 
 def test_withdraw_publishes_exactly_one_decision_event(client) -> None:
-    client.post(
+    response = client.post(
         "/portfolio/withdraw",
         json={"holdings": HOLDINGS, "target_amount": 80_000, "urgency": 0.4},
     )
@@ -229,6 +229,14 @@ def test_withdraw_publishes_exactly_one_decision_event(client) -> None:
     assert event["event_type"] == "portfolio.withdraw"
     assert event["model_version"]
     assert "assets_to_sell" in event["response"]
+    # The customer gets the id the plan is anchored under, so they can verify it later.
+    assert response.json()["decision_id"] == event["event_id"]
+    assert event["owner"] is None  # unauthenticated suite: no caller to own it
+
+
+def test_decision_event_carries_its_owner() -> None:
+    event = build_decision_event("withdraw", {}, {}, "v1", owner="42")
+    assert event["owner"] == "42"
 
 
 def test_producer_failure_never_breaks_the_request(client, monkeypatch) -> None:
@@ -278,7 +286,8 @@ def test_withdrawal_contract_field_names_are_frozen() -> None:
     }
     # Additive, optional fields from the market-data phases. Consumers that bind to the
     # frozen names above are unaffected; anything new must be listed here AND be optional.
-    additive = {"market_context", "currency", "cost_breakdown", "baseline_comparison", "effective_inputs"}
+    additive = {"market_context", "currency", "cost_breakdown", "baseline_comparison", "effective_inputs",
+                "decision_id"}
     actual = set(WithdrawalResponse.model_fields)
     assert actual == expected | additive, (
         f"WithdrawalResponse contract changed. Added: {actual - expected - additive}. "

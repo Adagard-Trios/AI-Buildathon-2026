@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node src/index.js",
-    "test": "node test-events.js && node test-odata.js && node test-gcp.js"
+    "test": "node test-events.js && node test-odata.js && node test-gcp.js && node test-rs256.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

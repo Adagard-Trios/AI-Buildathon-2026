@@ -1,18 +1,15 @@
-"""Optional JWT verification for Component 1's endpoints.
+"""JWT verification for Component 1's endpoints.
 
-Tokens are ISSUED by the platform service (backend/Platform) and merely VERIFIED here, using
-the same `JWT_SECRET`. That is the point of a shared secret: this service does not call back
-to the platform on every request, so a slow or restarted platform service cannot take
-Component 1 down with it.
+Tokens are ISSUED by the platform service (backend/Platform) and only VERIFIED here.
 
-This file is written to be copied unchanged into Components 2-4.
+* RS256 (PLATFORM_JWKS_URL or PLATFORM_PUBLIC_KEY set): verified against the platform's
+  public key, cached from its JWKS, so this service holds nothing that could mint a token
+  and does not call the platform per request. User tokens must carry aud "firststep-app".
+* Legacy HS256 with the shared JWT_SECRET when neither is set (unit tests).
+Exactly one algorithm is accepted in each mode.
 
-WHY IT IS OPTIONAL
-------------------
-`AUTH_REQUIRED` gates enforcement, defaulting to OFF. The existing 338 tests call these
-endpoints with no credentials and must keep passing untouched; compose turns it on. A flag
-that defaults to "secure" would have meant editing every one of those tests, which is how a
-security control ends up disabled wholesale instead of scoped.
+`AUTH_REQUIRED` is ON unless explicitly false/0/no/off (fail closed). The unit suite opts
+out in conftest.py; nothing in a deployment can disable it by omission.
 """
 
 from __future__ import annotations
@@ -40,9 +37,34 @@ class CallerIdentity:
     email: str | None = None
 
 
+USER_AUDIENCE = "firststep-app"
+_jwks_clients: dict = {}
+
+
+def _verification_key(token: str):
+    """(key, algorithms, asymmetric), or raise LookupError when nothing is configured."""
+    import jwt
+
+    pem = os.getenv("PLATFORM_PUBLIC_KEY", "").strip()
+    if pem:
+        return pem, ["RS256"], True
+    url = os.getenv("PLATFORM_JWKS_URL", "").strip()
+    if url:
+        client = _jwks_clients.get(url)
+        if client is None:
+            client = _jwks_clients[url] = jwt.PyJWKClient(url, cache_keys=True, lifespan=600, timeout=5)
+        return client.get_signing_key_from_jwt(token).key, ["RS256"], True
+    secret = os.getenv("JWT_SECRET", "").strip()
+    if secret:
+        return secret, [ALGORITHM], False
+    raise LookupError("no verification key configured")
+
+
 def auth_required() -> bool:
-    """Whether tokens are enforced. Off unless explicitly enabled."""
-    return os.getenv("AUTH_REQUIRED", "false").strip().lower() in {"1", "true", "yes", "on"}
+    """Whether tokens are enforced. On unless explicitly disabled."""
+    # Fail closed: only an explicit "off" disables enforcement. Unset, empty or a typo
+    # ("ture") leaves it ON, so a misconfigured deployment refuses rather than accepts.
+    return os.getenv("AUTH_REQUIRED", "true").strip().lower() not in {"0", "false", "no", "off"}
 
 
 def _unauthenticated() -> HTTPException:
@@ -67,28 +89,31 @@ def require_user(
     if credentials is None or not credentials.credentials:
         raise _unauthenticated()
 
-    secret = os.getenv("JWT_SECRET", "").strip()
-    if not secret:
-        # Enforcement was switched on without a secret. Refusing the request is the only safe
-        # answer -- falling back to "allow" would silently disable the control that was just
-        # asked for. 500, not 401: the fault is the deployment's, not the caller's.
-        logger.error("AUTH_REQUIRED is on but JWT_SECRET is unset; refusing all requests")
+    import jwt
+
+    try:
+        key, algorithms, asymmetric = _verification_key(credentials.credentials)
+    except LookupError:
+        # Enforcement is on but nothing to verify with. Refusing is the only safe answer;
+        # 500, not 401: the fault is the deployment's, not the caller's.
+        logger.error("AUTH_REQUIRED is on but no PLATFORM_JWKS_URL, PLATFORM_PUBLIC_KEY or JWT_SECRET is set")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Server auth is misconfigured",
-        )
-
-    import jwt
+        ) from None
+    except (jwt.PyJWKClientError, jwt.InvalidTokenError) as exc:
+        logger.info("rejected a token before verification: %s", exc)
+        raise _unauthenticated() from None
 
     try:
         payload = jwt.decode(
             credentials.credentials,
-            secret,
-            # Pinned to one algorithm: accepting a caller-controlled list is how the
+            key,
+            # Pinned to one algorithm per mode: accepting a caller-controlled list is how the
             # "alg: none" and RS256->HS256 confusion attacks work.
-            algorithms=[ALGORITHM],
+            algorithms=algorithms,
             issuer=ISSUER,
-            options={"require": ["exp", "iat", "sub"]},
+            options={"require": ["exp", "iat", "sub"], "verify_aud": False},
         )
     except jwt.ExpiredSignatureError:
         raise HTTPException(
@@ -99,6 +124,14 @@ def require_user(
     except jwt.InvalidTokenError as exc:
         logger.info("rejected an invalid token: %s", exc)
         raise _unauthenticated() from None
+
+    aud = payload.get("aud")
+    auds = [aud] if isinstance(aud, str) else (aud or [])
+    # Only user tokens addressed to the app; a service token minted for another component
+    # (or any token without the app audience in RS256 mode) is not a customer session.
+    if payload.get("typ") == "service" or ((asymmetric or auds) and USER_AUDIENCE not in auds):
+        logger.info("rejected a token not addressed to the app")
+        raise _unauthenticated()
 
     try:
         return CallerIdentity(user_id=int(payload["sub"]), email=payload.get("email"))

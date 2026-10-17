@@ -21,7 +21,7 @@ VERDICTS: deque = deque(maxlen=1000)
 _lock = threading.Lock()
 
 
-def check_message(text: str) -> dict:
+def check_message(text: str, owner: str | None = None) -> dict:
     flags, source = routing.extract(text)
     links = fl.urls(text)
     lookalikes = [u for u in links if ev.lookalike(u)]
@@ -67,5 +67,5 @@ def check_message(text: str) -> dict:
     events.publish(events.build_event(
         "scam.verdict", {"links": len(links)},  # the message text is never published
         {"level": result["level"], "fired_rules": result["fired_rules"]},
-        model_version=source, policy_version=result["policy_version"]))
+        model_version=source, policy_version=result["policy_version"], event_id=result["id"], owner=owner))
     return result

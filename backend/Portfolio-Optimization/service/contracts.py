@@ -80,6 +80,8 @@ class PortfolioResponse(BaseModel):
     selection_rationale: str
     model_version: str
     generated_at: datetime
+    # Id of the decision event anchored in Component 3 (verify via /api/audit/{id}/verify).
+    decision_id: str | None = None
 
 
 class WithdrawalRequest(BaseModel):
@@ -137,6 +139,8 @@ class WithdrawalResponse(BaseModel):
     baseline_comparison: list[dict] = Field(default_factory=list)
     # The inputs the plan was produced with (the agent may adjust urgency/risk tolerance).
     effective_inputs: dict | None = None
+    # Id of the decision event anchored in Component 3 (verify via /api/audit/{id}/verify).
+    decision_id: str | None = None
 
 
 class HealthResponse(BaseModel):

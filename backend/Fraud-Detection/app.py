@@ -167,7 +167,7 @@ async def health() -> HealthResponse:
 
 @app.post("/odata/v1/fraud/ScoreTransaction", response_model=ScoreResponse, tags=["odata"])
 @app.post("/score", response_model=ScoreResponse, tags=["detection"])
-async def score(request: ScoreRequest) -> ScoreResponse:
+async def score(request: ScoreRequest, http: Request) -> ScoreResponse:
     """
     Score one transaction and enforce a decision.
 
@@ -179,6 +179,7 @@ async def score(request: ScoreRequest) -> ScoreResponse:
         transaction,
         persist_state=request.persist_state,
         attack_type=request.attack_type,
+        owner=_caller_subject(http),
     )
 
 
@@ -218,9 +219,9 @@ class ShieldRequest(BaseModel):
 
 @app.post("/odata/v1/fraud/CheckMessage", tags=["odata"])
 @app.post("/shield/check", tags=["detection"])
-async def shield_check(request: ShieldRequest) -> Dict[str, Any]:
+async def shield_check(request: ShieldRequest, http: Request) -> Dict[str, Any]:
     """Scam Shield: SHIELD-P001 verdict for a message. The text is not stored."""
-    return check_message(request.text)
+    return check_message(request.text, owner=_caller_subject(http))
 
 
 @app.post("/odata/v1/fraud/SimulateAttack", response_model=AttackResponse, tags=["odata"])
@@ -257,9 +258,11 @@ async def simulate_attack(request: AttackRequest) -> AttackResponse:
 
 
 @app.get("/audit", tags=["governance"])
-async def audit(limit: int = Query(default=25, ge=1, le=200)) -> Dict[str, Any]:
-    """Most recent gateway decisions, newest first."""
-    return {"count": AUDIT.count(), "entries": AUDIT.recent(limit)}
+async def audit(http: Request, limit: int = Query(default=25, ge=1, le=200)) -> Dict[str, Any]:
+    """Most recent gateway decisions, newest first: the caller's own, unless a service
+    identity holds fraud.read (see odata_service.visible_decisions)."""
+    entries = odata_service.visible_decisions(http, AUDIT.recent(10_000))[:limit]
+    return {"count": len(entries), "entries": entries}
 
 
 @app.get("/config", tags=["governance"])

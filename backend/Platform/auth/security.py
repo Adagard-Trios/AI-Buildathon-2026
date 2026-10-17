@@ -120,8 +120,17 @@ def create_access_token(
         "iat": now,
         "exp": now + timedelta(minutes=expires_minutes),
         "iss": "firststep-platform",
+        # Default audience: the first-party app. Service tokens override it with the one
+        # component they were issued for (client credentials in service/api.py).
+        "aud": ["firststep-app"],
         **(extra_claims or {}),
     }
+    from auth import signing
+
+    # RS256 when a signing key is configured: only this service can mint, everyone else
+    # verifies with the public key (auth/signing.py). HS256 is the legacy/test mode.
+    if signing.asymmetric():
+        return jwt.encode(payload, signing.private_key(), algorithm="RS256", headers={"kid": signing.key_id()})
     return jwt.encode(payload, get_jwt_secret(), algorithm=ALGORITHM)
 
 
@@ -129,13 +138,23 @@ def decode_access_token(token: str) -> dict[str, Any]:
     """Verify and decode a token.
 
     Raises jwt.InvalidTokenError (which ExpiredSignatureError subclasses) on anything wrong.
-    `algorithms` is pinned to a single value on purpose: accepting a list the caller controls
-    is how the classic "alg: none" and RS256->HS256 confusion attacks work.
+    `algorithms` is pinned to ONE value for the active mode on purpose: accepting a list is how
+    the classic "alg: none" and RS256->HS256 confusion attacks work. In RS256 mode an HS256
+    token is rejected even if it was signed with the right JWT_SECRET.
     """
+    from auth import signing
+
+    if signing.asymmetric():
+        key, algorithms = signing.public_key(), ["RS256"]
+    else:
+        key, algorithms = get_jwt_secret(), [ALGORITHM]
     return jwt.decode(
         token,
-        get_jwt_secret(),
-        algorithms=[ALGORITHM],
+        key,
+        algorithms=algorithms,
         issuer="firststep-platform",
-        options={"require": ["exp", "iat", "sub"]},
+        # The platform's own endpoints serve the app: only user tokens addressed to it pass,
+        # so a service token minted for "audit" cannot be replayed here.
+        audience="firststep-app",
+        options={"require": ["exp", "iat", "sub", "aud"]},
     )
