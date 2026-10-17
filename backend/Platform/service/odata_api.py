@@ -9,7 +9,10 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-for _p in (Path(__file__).resolve().parents[3] / "shared" / "odata", Path("/app/shared_odata")):
+# Inside a container the file sits at /app/..., with no repo checkout 3 levels up.
+_up = Path(__file__).resolve().parents
+_repo_root = _up[3] if len(_up) > 3 else Path("/nonexistent")
+for _p in (_repo_root / "shared" / "odata", Path("/app/shared_odata")):
     if _p.is_dir():
         sys.path.insert(0, str(_p))
 
