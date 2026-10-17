@@ -32,7 +32,9 @@ fi
 
 g() { gcloud --project "$PROJECT_ID" --quiet "$@"; }
 
-PROJECT_NUMBER="$(g projects describe "$PROJECT_ID" --format 'value(projectNumber)')"
+# CI passes the number in: looking it up needs the Cloud Resource Manager API, which is off in
+# the project and which the CI deployer has no business enabling.
+PROJECT_NUMBER="${PROJECT_NUMBER:-$(g projects describe "$PROJECT_ID" --format 'value(projectNumber)')}"
 REPO="${REGION}-docker.pkg.dev/${PROJECT_ID}/firststep"
 RUN_SA="firststep-run@${PROJECT_ID}.iam.gserviceaccount.com"
 # Timestamped so a redeploy of uncommitted changes never reuses an older image's tag.

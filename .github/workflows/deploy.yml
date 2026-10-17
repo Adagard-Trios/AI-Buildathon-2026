@@ -27,6 +27,7 @@ concurrency:
 
 env:
   PROJECT_ID: firststep-buildathon
+  PROJECT_NUMBER: "214625202650"
   REGION: us-central1
   SKIP_SETUP: "1"
 
