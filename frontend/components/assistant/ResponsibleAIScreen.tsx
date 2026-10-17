@@ -23,6 +23,9 @@ export function ResponsibleAIScreen() {
         <p className="mt-1 text-sm text-neutral-500">
           Platform alignment with TRiSM, privacy protection, and transparent user controls
         </p>
+        <p className="mt-2 inline-block rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+          Illustrative example, not your account&apos;s data
+        </p>
       </div>
 
       {/* 6 Governance Cards Grid */}

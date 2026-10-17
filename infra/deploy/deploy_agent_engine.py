@@ -36,7 +36,7 @@ def main() -> None:
 
     vertexai.init(project=os.environ["PROJECT_ID"], location=os.environ["REGION"],
                   staging_bucket=os.environ["STAGING_BUCKET"])
-    agent = Agent(model=os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"), name="firststep_orchestrator",
+    agent = Agent(model=os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite"), name="firststep_orchestrator",
                   instruction=SYSTEM_PROMPT, tools=fns)
     remote = agent_engines.create(agent_engines.AdkApp(agent=agent),
                                   requirements=["google-cloud-aiplatform[agent_engines,adk]", "langchain-core"],

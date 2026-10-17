@@ -2,7 +2,7 @@ const policyEngine = require("../services/policyEngine");
 const hashService = require("../services/hashService");
 const blockchainService = require("../services/blockchainService");
 const auditService = require("../services/auditService");
-const { canSee, visible } = require("../services/visibility");
+const { canSee, ownerOf, visible } = require("../services/visibility");
 
 /**
  * Controller handling API requests for AI decision evaluations, human reviews,
@@ -326,6 +326,17 @@ class AuditController {
 
       const { transactionId } = req.params;
       const { field, tamperedValue } = req.body || {};
+
+      // Only your own record (or an admin's choice). Not canSee(): an auditor may read every
+      // record, but reading is not licence to alter. Someone else's record answers exactly
+      // like a missing one, as in verifyAudit.
+      const p = req.principal;
+      const record = auditService.getRecord(transactionId);
+      const mayAlter = !p || p.kind === "service" || (p.roles || []).includes("admin")
+        || (record && ownerOf(record) === String(p.subject));
+      if (!mayAlter) {
+        return res.status(404).json({ success: false, message: `Audit record for transaction ${transactionId} was not found.` });
+      }
 
       const result = auditService.tamperRecord(
         transactionId,

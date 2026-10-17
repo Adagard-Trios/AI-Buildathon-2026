@@ -28,7 +28,7 @@ def gemini_flags(text: str, timeout: float = 15.0) -> Optional[dict]:
     key = os.environ.get("GEMINI_API_KEY")
     if not key:
         return None
-    model = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+    model = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite")
     prompt = ("Answer true or false for each key about this message. Return JSON only with keys "
               f"{list(_PATTERNS)}.\n\nMessage:\n{text[:4000]}")
     body = json.dumps({"contents": [{"parts": [{"text": prompt}]}],

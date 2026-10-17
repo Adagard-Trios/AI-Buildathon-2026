@@ -274,6 +274,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Roles */
+            roles?: string[];
         };
         /** ValidationError */
         ValidationError: {

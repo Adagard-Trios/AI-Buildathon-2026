@@ -67,6 +67,10 @@ function Shell({ children }: { children: ReactNode }) {
           </Link>
           <div className="flex items-center gap-3 text-sm">
             <span className="text-neutral-500">{user.display_name}</span>
+            {/* Display only: each service enforces roles from the signed token. */}
+            <span className="rounded bg-black/5 px-2 py-0.5 text-xs dark:bg-white/10">
+              {user.roles?.length ? user.roles.join(" · ") : "customer"}
+            </span>
             <button onClick={logout} className="underline">
               Sign out
             </button>

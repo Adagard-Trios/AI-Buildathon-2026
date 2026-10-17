@@ -25,6 +25,9 @@ RUN uv pip install --system --index-url https://download.pytorch.org/whl/cpu tor
       requests yfinance pandas-ta-openbb scikit-fuzzy networkx deap pymoo mlflow \
       fastapi "uvicorn[standard]" confluent-kafka prometheus-fastapi-instrumentator openai \
       transformers peft accelerate yt-dlp pypdf
+# service/auth.py verifies the platform's RS256 tokens. Without these every signed-in request
+# fails on `import jwt` (a 500), while anonymous ones still get a clean 401.
+RUN uv pip install --system "pyjwt[crypto]>=2.8,<3"
 
 COPY . .
 

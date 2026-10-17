@@ -63,6 +63,16 @@ const call = (port, method, path, token, body) => new Promise((resolve, reject) 
     assert.ok(s === 401 || s === 403, `${why}: got ${s}`);
   }
   assert.strictEqual((await call(port, "DELETE", "/api/audit/records", rs())).status, 403, "roles still enforced");
+  // Tamper demo: your own record only. Reading everything (auditor) is not licence to alter it.
+  const anchor = await call(port, "POST", "/api/audit/evaluate", rs({ sub: "1" }),
+    { transactionId: "tx-own-1", riskScore: 90, confidence: 0.95, amount: 100, transactionType: "transfer", modelVersion: "m1" });
+  assert.ok(anchor.status < 300, `anchor as user 1: ${anchor.status}`);
+  const T = "/api/audit/tx-own-1/tamper";
+  assert.strictEqual((await call(port, "POST", T, rs({ sub: "2" }), {})).status, 404, "someone else's record");
+  assert.strictEqual((await call(port, "POST", T, rs({ sub: "2", roles: ["auditor"] }), {})).status, 404, "auditor reads, does not alter");
+  assert.strictEqual((await call(port, "POST", T, rs({ sub: "1" }), {})).status, 200, "own record");
+  assert.strictEqual((await call(port, "POST", T, rs({ sub: "3", roles: ["admin"] }), {})).status, 200, "admin");
+
   assert.strictEqual((await call(port, "DELETE", "/api/audit/records", rs({ roles: ["admin"] }))).status, 200, "admin in demo");
 
   server.close(); jwksServer.close();
