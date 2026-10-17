@@ -9,6 +9,9 @@
 #   PROJECT_ID=my-project bash infra/deploy/deploy_lean.sh            # everything
 #   PROJECT_ID=my-project bash infra/deploy/deploy_lean.sh c2 frontend  # only these
 #
+# Pushes to main also deploy automatically (.github/workflows/deploy.yml); one-time setup for
+# that is infra/deploy/setup_github_deploy.sh.
+#
 # Optional: secret `firststep-gemini-key` holding a Gemini API key. Without it every component
 # falls back to its rules / offline path and says so.
 set -euo pipefail
@@ -150,7 +153,9 @@ deploy_frontend() {
   run web "$img" 3000 512Mi 0 2 "NODE_ENV=production"
 }
 
-setup
+# CI sets SKIP_SETUP=1: the one-time setup (APIs, repo, secrets, IAM) was already done by a
+# human, and the CI deployer is deliberately not allowed to change IAM or create secrets.
+[ "${SKIP_SETUP:-}" = 1 ] || setup
 if g secrets describe firststep-gemini-key >/dev/null 2>&1; then GEMINI_SECRET=1
 else echo "note: no firststep-gemini-key secret; deploying without Gemini" >&2; fi
 targets=("$@"); [ ${#targets[@]} -eq 0 ] && targets=(platform c3 c2 c1 c4 frontend)
