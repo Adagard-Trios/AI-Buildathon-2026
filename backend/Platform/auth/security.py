@@ -84,12 +84,22 @@ def roles_for(email: str) -> list[str]:
     role names are dropped instead of passed through, so a typo cannot mint a new privilege.
     Roles are read at token issue time; a revoked role takes effect at the user's next login.
     """
-    wanted = email.lower().strip()
+    return staff_roles().get(email.lower().strip(), [])
+
+
+def staff_roles() -> dict[str, list[str]]:
+    """Every email PLATFORM_ROLES grants at least one known role to, with those roles.
+
+    These addresses are reserved: they are provisioned at startup (store/seed.py) and can never
+    be self-registered, because registration does not prove ownership of an email address.
+    """
+    staff: dict[str, list[str]] = {}
     for entry in filter(None, os.getenv("PLATFORM_ROLES", "").split(";")):
         who, _, roles = entry.partition(":")
-        if who.lower().strip() == wanted:
-            return sorted(set(roles.split()) & KNOWN_ROLES)
-    return []
+        granted = sorted(set(roles.split()) & KNOWN_ROLES)
+        if who.strip() and granted:
+            staff[who.lower().strip()] = granted
+    return staff
 
 
 def hash_password(password: str) -> str:

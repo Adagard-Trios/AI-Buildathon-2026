@@ -124,3 +124,13 @@ def test_decision_events_carry_the_authenticated_owner(c, monkeypatch):
     assert [e["owner"] for e in sent] == ["9", "9"]
     assert sent[1]["event_id"] == "tx_abc"
     assert sent[1]["principal"] == "u_1001"  # the bank customer on the transfer is kept separately
+
+
+def test_reset_is_an_operator_action(c):
+    """The fraud state is shared by every user: signing in is not enough to wipe it."""
+    assert c.post("/reset").status_code == 401
+    assert c.post("/reset", headers=tok()).status_code == 403
+    assert c.post("/reset", headers=tok(roles=["auditor"])).status_code == 403
+    assert c.post("/reset", headers=tok(typ="service", aud=["fraud"], scope="fraud.read")).status_code == 403
+    assert c.post("/reset", headers=tok(roles=["admin"])).status_code == 200
+    assert c.post("/reset", headers=tok(typ="service", aud=["fraud"], scope="fraud.admin")).status_code == 200

@@ -30,7 +30,7 @@ if os.environ.get("GEMINI_API_KEY"):
     from langchain_google_genai import ChatGoogleGenerativeAI
 
     llm = ChatGoogleGenerativeAI(
-        model=os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
+        model=os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite"),
         google_api_key=os.environ["GEMINI_API_KEY"],
         temperature=0.1,
     )

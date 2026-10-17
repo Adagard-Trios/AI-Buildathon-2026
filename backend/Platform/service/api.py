@@ -9,6 +9,7 @@ find out.
 from __future__ import annotations
 
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -24,6 +25,7 @@ from auth.security import (
     get_jwt_secret,
     hash_password,
     roles_for,
+    staff_roles,
     validate_service_clients,
     verify_password,
 )
@@ -41,6 +43,7 @@ from service.contracts import (
 )
 from service.cors import install_cors
 from store.database import get_session, init_db
+from store.seed import add_starter_portfolio, seed_staff_accounts, starter_portfolio_enabled
 from store.models import Holding, Portfolio, User
 
 logger = logging.getLogger(__name__)
@@ -60,6 +63,13 @@ async def lifespan(_app: FastAPI):
         get_jwt_secret()
     validate_service_clients()
     init_db()
+    # Staff accounts exist before the first request, so no one can register a role-bearing
+    # address ahead of them (the SQLite file starts empty on every deploy).
+    session = next(get_session())
+    try:
+        seed_staff_accounts(session, staff_roles(), os.getenv("PLATFORM_STAFF_PASSWORD"))
+    finally:
+        session.close()
     logger.info("platform service ready")
     yield
 
@@ -111,6 +121,10 @@ def jwks() -> dict:
 def register(request: RegisterRequest, session: Session = Depends(get_session)) -> TokenResponse:
     """Create an account and return a token, so the client is not forced to log in again."""
     normalised = request.email.lower().strip()
+    if normalised in staff_roles():
+        # A role attaches to this address; whoever registered it first would hold the role.
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="This address is reserved for a staff account")
 
     user = User(
         email=normalised,
@@ -130,6 +144,9 @@ def register(request: RegisterRequest, session: Session = Depends(get_session)) 
         ) from None
 
     session.refresh(user)
+    if starter_portfolio_enabled():
+        add_starter_portfolio(session, user)
+        session.commit()
     logger.info("registered user %s", user.id)
     return _token_for(user)
 
@@ -193,7 +210,7 @@ def client_token(req: ClientCredentials) -> dict:
 
 @app.get("/auth/me", response_model=UserResponse)
 def me(user: User = Depends(get_current_user)) -> UserResponse:
-    return UserResponse.model_validate(user)
+    return UserResponse.model_validate(user).model_copy(update={"roles": roles_for(user.email)})
 
 
 def _token_for(user: User) -> TokenResponse:
@@ -201,7 +218,7 @@ def _token_for(user: User) -> TokenResponse:
         access_token=create_access_token(
             subject=str(user.id), extra_claims={"email": user.email, "roles": roles_for(user.email)}),
         expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        user=UserResponse.model_validate(user),
+        user=UserResponse.model_validate(user).model_copy(update={"roles": roles_for(user.email)}),
     )
 
 

@@ -19,6 +19,25 @@ import { ApiError } from "@/lib/api/client";
 
 import { TamperDemo } from "./TamperDemo";
 
+/**
+ * Fixed columns, because the trail mixes two record shapes: decisions anchored by the policy
+ * engine, and events sent by the other components (whose details sit in a nested `event`).
+ * Taking the first record's keys printed "[object Object]" for every event.
+ */
+type AuditEvent = { component?: string; model_version?: string; policy_version?: string };
+const eventOf = (row: AuditRecord): AuditEvent =>
+  (row.event && typeof row.event === "object" ? row.event : {}) as AuditEvent;
+const text = (value: unknown): string | undefined =>
+  value === undefined || value === null || value === "" ? undefined : String(value);
+
+const AUDIT_COLUMNS: [string, (row: AuditRecord) => string | undefined][] = [
+  ["Record", (row) => text(row.transactionId)],
+  ["Decision", (row) => text(row.finalDecision ?? row.decision)],
+  ["Source", (row) => text(eventOf(row).component) ?? (row.kind === "event" ? undefined : "policy engine")],
+  ["Model", (row) => text(row.modelVersion ?? eventOf(row).model_version)],
+  ["Time", (row) => text(row.timestamp)],
+];
+
 export default function AuditPage() {
   const [tab, setTab] = useState<"records" | "tamper">("records");
   const [records, setRecords] = useState<AuditRecord[]>([]);
@@ -65,7 +84,7 @@ export default function AuditPage() {
   }, [refreshToken]);
 
   const refresh = () => setRefreshToken((token) => token + 1);
-  const columns = records.length > 0 ? Object.keys(records[0]).slice(0, 5) : [];
+  const columns = AUDIT_COLUMNS.map(([label]) => label);
 
   return (
     <div className="space-y-6">
@@ -161,9 +180,9 @@ export default function AuditPage() {
                       <tbody>
                         {records.slice(0, 25).map((row, index) => (
                           <tr key={index} className="border-t border-neutral-200/60">
-                            {columns.map((column) => (
-                              <td key={column} className="py-2 font-mono text-xs">
-                                {String(row[column] ?? "—").slice(0, 48)}
+                            {AUDIT_COLUMNS.map(([label, cell]) => (
+                              <td key={label} className="py-2 font-mono text-xs">
+                                {(cell(row) ?? "—").slice(0, 48)}
                               </td>
                             ))}
                           </tr>

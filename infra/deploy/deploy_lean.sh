@@ -17,7 +17,13 @@
 set -euo pipefail
 : "${PROJECT_ID:?set PROJECT_ID}"
 REGION="${REGION:-us-central1}"
-GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.5-flash-lite}"
+# gemini-2.5-flash-lite is retired for new projects ("no longer available to new users").
+GEMINI_MODEL="${GEMINI_MODEL:-gemini-3.5-flash-lite}"
+# Staff accounts the platform provisions at startup; these addresses cannot be self-registered.
+# Format: "email:role role;email:role". Known roles: admin, auditor. Everyone else is a customer.
+PLATFORM_ROLES="${PLATFORM_ROLES:-admin@firststep.demo:admin auditor;auditor@firststep.demo:auditor}"
+# Their password (12+ characters, no "@"). Without one the staff accounts are not created.
+PLATFORM_STAFF_PASSWORD="${PLATFORM_STAFF_PASSWORD:-}"
 cd "$(dirname "$0")/../.."
 # A shell opened before the Windows installer ran won't have gcloud on PATH yet.
 if ! command -v gcloud >/dev/null 2>&1 && [ -n "${LOCALAPPDATA:-}" ]; then
@@ -124,7 +130,7 @@ deploy_platform() {
   # min 1 / max 1: users live in SQLite on the instance's disk. One instance means one
   # database; keeping it warm means accounts survive idle periods (lost only on redeploy).
   run platform "$img" 8100 512Mi 1 1 \
-    "ALLOWED_ORIGINS=${WEB_URL}@DATABASE_URL=sqlite:////tmp/platform.sqlite" \
+    "ALLOWED_ORIGINS=${WEB_URL}@DATABASE_URL=sqlite:////tmp/platform.sqlite@PLATFORM_STARTER_PORTFOLIO=true@PLATFORM_ROLES=${PLATFORM_ROLES}@PLATFORM_STAFF_PASSWORD=${PLATFORM_STAFF_PASSWORD}" \
     "PLATFORM_SIGNING_KEY=firststep-signing-key:latest,SERVICE_CLIENTS=firststep-service-clients:latest"
 }
 deploy_c3() {

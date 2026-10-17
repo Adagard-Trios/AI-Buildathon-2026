@@ -87,4 +87,8 @@ jobs:
         if: steps.pick.outputs.targets != ''
         env:
           TARGETS: ${{ steps.pick.outputs.targets }}
+          # Staff accounts (admin / auditor). The password lives in a repository secret; the
+          # role list can be overridden with a repository variable.
+          PLATFORM_STAFF_PASSWORD: ${{ secrets.FIRSTSTEP_STAFF_PASSWORD }}
+          PLATFORM_ROLES: ${{ vars.PLATFORM_ROLES }}
         run: bash infra/deploy/deploy_lean.sh $TARGETS

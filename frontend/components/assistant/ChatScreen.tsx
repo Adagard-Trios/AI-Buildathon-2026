@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { ChatMessage } from "./types";
-import { MOCK_INITIAL_MESSAGES, SUGGESTED_QUESTIONS } from "./mockData";
+import { SUGGESTED_QUESTIONS } from "./mockData";
 import { AgentWorkflowPanel } from "./AgentWorkflowPanel";
 import { BotIcon, SparklesIcon, ChevronRightIcon, WrenchIcon } from "./icons";
 
@@ -19,7 +19,7 @@ interface Props {
 }
 
 export function ChatScreen({ onNavigateToExplanation }: Props) {
-  const [messages, setMessages] = useState<ChatMessage[]>(MOCK_INITIAL_MESSAGES);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);  // every user starts with their own, empty conversation
   const [inputText, setInputText] = useState("");
   const [isSimulatingResponse, setIsSimulatingResponse] = useState(false);
   const [lang, setLang] = useState<Lang>("en");

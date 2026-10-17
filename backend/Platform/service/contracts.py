@@ -45,6 +45,9 @@ class UserResponse(BaseModel):
     email: EmailStr
     display_name: str
     created_at: datetime
+    # "admin" / "auditor" from PLATFORM_ROLES; empty for a customer. Display only: every
+    # service enforces roles from the signed token, never from this response.
+    roles: list[str] = []
 
 
 # --------------------------------------------------------------------------------------

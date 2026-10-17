@@ -1,5 +1,8 @@
+import logging
+
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from langchain_core.messages import HumanMessage
@@ -14,6 +17,8 @@ import trust_panel
 from caller_context import reset_caller, set_caller
 from odata import install_error_handler
 from zt_auth import require
+
+_log = logging.getLogger(__name__)
 
 app = FastAPI(
     title="FinAgent - Agentic Financial Assistant",
@@ -104,6 +109,14 @@ def chat(request: ChatRequest, http: Request, principal=Depends(require("assista
                 ]
             }
         )
+    except Exception as exc:  # noqa: BLE001 - the model provider, not the request, failed
+        # An unhandled exception becomes a bare 500 without CORS headers, which the browser
+        # reports as "cannot reach the service". Say what actually happened, and never
+        # substitute an invented answer.
+        _log.exception("assistant model call failed")
+        return JSONResponse(status_code=503, content={
+            "detail": f"The assistant's language model is unavailable ({type(exc).__name__}). "
+                      "No answer was generated."})
     finally:
         reset_caller(ctx)
 

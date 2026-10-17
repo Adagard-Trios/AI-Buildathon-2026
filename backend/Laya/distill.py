@@ -22,7 +22,7 @@ def label(text: str, head: str) -> dict:
               f"for yes/no questions.\nQuestions: {json.dumps(qs)}\nText:\n{text[:4000]}")
     body = json.dumps({"contents": [{"parts": [{"text": prompt}]}],
                        "generationConfig": {"responseMimeType": "application/json", "temperature": 0}}).encode()
-    model = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+    model = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite")
     req = urllib.request.Request(
         f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent", body,
         {"Content-Type": "application/json", "x-goog-api-key": os.environ["GEMINI_API_KEY"]})

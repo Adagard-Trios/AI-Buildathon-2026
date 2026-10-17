@@ -16,7 +16,7 @@ def generate_json(parts: list[dict], *, timeout: float = 60.0) -> dict:
     key = os.environ.get("GEMINI_API_KEY")
     if not key:
         raise GeminiUnavailable("GEMINI_API_KEY is not set")
-    model = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+    model = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite")
     body = json.dumps({"contents": [{"parts": parts}],
                        "generationConfig": {"responseMimeType": "application/json", "temperature": 0}}).encode()
     req = urllib.request.Request(

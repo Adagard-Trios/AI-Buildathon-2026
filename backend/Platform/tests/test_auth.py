@@ -256,13 +256,24 @@ def test_roles_come_only_from_deployment_config(client, monkeypatch) -> None:
     """Roles are granted by PLATFORM_ROLES, never by the client, and unknown names are dropped."""
     import jwt as pyjwt
 
+    from fastapi.testclient import TestClient
+
+    from service.api import app
+
     monkeypatch.setenv("PLATFORM_ROLES", "Rev@Example.com:auditor superuser;other@example.com:admin")
+    monkeypatch.setenv("PLATFORM_STAFF_PASSWORD", "a-staff-passphrase-long-enough")
     body = {"display_name": "R", "password": "a-good-long-passphrase"}
-    rev = client.post("/auth/register", json={**body, "email": "rev@example.com", "roles": ["admin"]})
-    plain = client.post("/auth/register", json={**body, "email": "plain@example.com"})
     roles = lambda r: pyjwt.decode(r.json()["access_token"], options={"verify_signature": False})["roles"]  # noqa: E731
-    assert roles(rev) == ["auditor"]       # case-insensitive match; "superuser" and the body's "admin" ignored
-    assert roles(plain) == []
+    with TestClient(app) as staffed:       # startup provisions the role-bearing accounts
+        rev = staffed.post("/auth/login", json={"email": "rev@example.com",
+                                                "password": "a-staff-passphrase-long-enough"})
+        # A role-bearing address is reserved: registering it, with or without a "roles"
+        # field in the body, cannot be how anyone acquires the role.
+        squat = staffed.post("/auth/register", json={**body, "email": "rev@example.com", "roles": ["admin"]})
+        plain = staffed.post("/auth/register", json={**body, "email": "plain@example.com", "roles": ["admin"]})
+    assert squat.status_code == 403
+    assert roles(rev) == ["auditor"]       # case-insensitive match; "superuser" dropped
+    assert roles(plain) == []              # the body's "admin" ignored
 
 
 @pytest.mark.parametrize("value", ["fraud:<fraud-secret>:audit.write", "fraud:short:audit.write", ":" + "x" * 40 + ":s"])

@@ -291,8 +291,17 @@ async def config() -> Dict[str, Any]:
 
 
 @app.post("/reset", tags=["system"])
-async def reset() -> Dict[str, str]:
-    """Clear all learned user profiles and graph state, then reseed the demo graph."""
+async def reset(http: Request) -> Dict[str, str]:
+    """Clear all learned user profiles and graph state, then reseed the demo graph.
+
+    The state is shared by every user, so wiping it is an operator action: the platform's
+    "admin" role, or a service holding fraud.admin. Signing in is not enough.
+    """
+    principal = getattr(http.state, "principal", None)
+    if principal is not None:
+        allowed = ("admin" in principal.roles) if principal.kind == "user" else ("fraud.admin" in principal.scopes)
+        if not allowed:
+            raise HTTPException(status_code=403, detail="Forbidden")
     PIPELINE.reset()
     return {"status": "reset", "detail": "User profiles, graph memory and audit view cleared."}
 
