@@ -212,7 +212,7 @@ function HoldingPanels({ symbol }: { symbol: string }) {
         {sentiment.sentiment ? (
           <ul className="space-y-1 text-sm">
             {sentiment.sentiment.top_sources.map((s, i) => (
-              <li key={i} className="truncate">
+              <li key={i} className="min-w-0 [overflow-wrap:anywhere]">
                 <span className="text-xs text-neutral-500">{s.channel} · {s.tier} · {fmt(s.polarity, 2)}</span>{" "}
                 {s.url ? (
                   <a href={s.url} target="_blank" rel="noreferrer" className="hover:underline">{s.title ?? s.url}</a>

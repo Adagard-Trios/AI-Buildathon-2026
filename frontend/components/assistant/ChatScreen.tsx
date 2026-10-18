@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { ChatMessage } from "./types";
 import { SUGGESTED_QUESTIONS } from "./mockData";
-import { AgentWorkflowPanel } from "./AgentWorkflowPanel";
+import { RichText } from "./RichText";
 import { BotIcon, SparklesIcon, ChevronRightIcon, WrenchIcon } from "./icons";
 
 import { ApiError, request } from "@/lib/api/client";
@@ -111,7 +111,6 @@ export function ChatScreen({ onNavigateToExplanation }: Props) {
       </div>
 
       {/* Expandable Agent Activity Panel */}
-      <AgentWorkflowPanel />
 
       {/* Messages Thread Container */}
       <div className="flex flex-col gap-4 rounded-xl border border-black/10 bg-white p-4 shadow-xs dark:border-white/15 dark:bg-neutral-900 sm:p-6">
@@ -143,7 +142,7 @@ export function ChatScreen({ onNavigateToExplanation }: Props) {
                   : "border border-neutral-200 bg-neutral-50 text-neutral-900 shadow-2xs dark:border-neutral-800 dark:bg-neutral-800 dark:text-white"
               }`}
             >
-              {msg.text}
+              {msg.sender === "assistant" ? <RichText text={msg.text} /> : msg.text}
 
               {/* Assistant Evidence & Tool Attachments */}
               {msg.sender === "assistant" && (
@@ -179,7 +178,7 @@ export function ChatScreen({ onNavigateToExplanation }: Props) {
                   {msg.hasWhyButton && (
                     <div className="mt-3 flex items-center justify-between">
                       <span className="text-xs text-neutral-400 italic">
-                        SLM generated natural explanation grounded in SHAP attributions
+                        Written by Gemini from the tool evidence, then checked
                       </span>
                       <button
                         onClick={onNavigateToExplanation}
@@ -222,14 +221,14 @@ export function ChatScreen({ onNavigateToExplanation }: Props) {
       {voiceNote && <p className="text-xs text-amber-600">{voiceNote}</p>}
 
       {/* Chat Input Box */}
-      <div className="flex items-center gap-2 rounded-xl border border-black/15 bg-white p-2 shadow-xs dark:border-white/20 dark:bg-neutral-900">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-black/15 bg-white p-2 shadow-xs dark:border-white/20 dark:bg-neutral-900">
         <input
           type="text"
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
           placeholder="Ask the financial assistant..."
-          className="flex-1 bg-transparent px-3 py-2 text-sm outline-none placeholder:text-neutral-400"
+          className="min-w-0 flex-1 basis-full bg-transparent px-3 py-2 text-sm outline-none placeholder:text-neutral-400 sm:basis-auto"
         />
         <select
           value={lang}
@@ -254,7 +253,7 @@ export function ChatScreen({ onNavigateToExplanation }: Props) {
         <button
           onClick={() => handleSendMessage()}
           disabled={!inputText.trim() || isSimulatingResponse}
-          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-40"
+          className="ml-auto rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-40 sm:ml-0"
         >
           Send
         </button>

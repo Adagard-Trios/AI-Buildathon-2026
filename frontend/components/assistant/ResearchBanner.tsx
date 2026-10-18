@@ -5,14 +5,14 @@ import { ChevronRightIcon } from "./icons";
 
 export function ResearchBanner() {
   const steps = [
-    { label: "LLM Orchestration", desc: "Intent & Planning" },
-    { label: "LangGraph Agent", desc: "State Workflow" },
-    { label: "Tool Calling", desc: "Fraud & Audit APIs" },
-    { label: "Evidence", desc: "Raw Data" },
-    { label: "SHAP/LIME", desc: "Attribution" },
-    { label: "SLM Explanation", desc: "Natural Language" },
-    { label: "Responsible AI", desc: "Guardrails Check" },
-    { label: "Trust Panel", desc: "User Control" },
+    { label: "Gemini", desc: "Understands the question" },
+    { label: "Agent", desc: "Plans which checks to run" },
+    { label: "Tools", desc: "Scam, fraud, audit, portfolio" },
+    { label: "Evidence", desc: "What the tools returned" },
+    { label: "Grounding", desc: "No invented figures" },
+    { label: "Explanation", desc: "Your language" },
+    { label: "Safety checks", desc: "Privacy and advice limits" },
+    { label: "Trust Panel", desc: "Nothing happens without you" },
   ];
 
   return (
@@ -21,10 +21,10 @@ export function ResearchBanner() {
         <div className="flex items-center gap-2">
           <span className="flex size-2 rounded-full bg-blue-600"></span>
           <h3 className="text-xs font-bold uppercase tracking-wider text-blue-900 dark:text-blue-300">
-            Research Architecture Pipeline
+            How an answer is made
           </h3>
         </div>
-        <span className="text-[11px] text-neutral-500">Observable Agentic Loop</span>
+        <span className="text-[11px] text-neutral-500">Every step is logged</span>
       </div>
 
       <div className="flex items-center gap-1 overflow-x-auto pb-1 text-xs">

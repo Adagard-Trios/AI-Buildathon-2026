@@ -102,7 +102,7 @@ export function HoldingContext({ symbol, context }: { symbol: string; context: M
             </Row>
             <ul className="mt-1 space-y-0.5">
               {sentiment.top_sources.map((source, i) => (
-                <li key={i} className="truncate text-xs">
+                <li key={i} className="min-w-0 text-xs [overflow-wrap:anywhere]">
                   <Badge>{source.channel}</Badge>{" "}
                   {source.url ? (
                     <a href={source.url} target="_blank" rel="noreferrer" className="hover:underline">
