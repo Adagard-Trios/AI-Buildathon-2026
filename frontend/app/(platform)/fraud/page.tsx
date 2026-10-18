@@ -197,7 +197,7 @@ export default function FraudPage() {
             <Stat label="Risk score" value={result.risk_score.toFixed(3)} />
             <Stat label="Behavioural" value={result.behavioral_score.toFixed(3)} />
             <Stat label="Graph" value={result.graph_score.toFixed(3)} />
-            <Stat label="Amount" value={money(tx.amount)} />
+            <Stat label="Amount" value={money(tx.amount, "LKR")} />
           </div>
 
           {result.signals && result.signals.length > 0 && (
