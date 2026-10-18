@@ -53,3 +53,22 @@ def test_invented_figures_are_still_rejected(monkeypatch):
         AIMessage(content="About 4,700 people lost money to this scheme.")]})
     body = TestClient(main.app).post("/assistant/chat", json={"message": "Is this a scam?"}).json()
     assert body["responsible_ai"]["grounding"]["grounded"] is False
+
+
+def test_answer_is_translated_when_the_model_ignores_the_language(monkeypatch):
+    from langchain_core.messages import AIMessage
+
+    monkeypatch.setattr(main.agent, "invoke", lambda state: {"messages": state["messages"] + [
+        AIMessage(content="This is a scam. 30% a month is not real.")]})
+    class FakeLLM:
+        def invoke(self, msgs):
+            return AIMessage(content="මෙය වංචාවකි. මසකට 30% සැබෑ නොවේ.")
+
+    monkeypatch.setattr(main, "llm", FakeLLM())
+    body = TestClient(main.app).post("/assistant/chat", json={"message": "[Reply in සිංහල] Is 30% a month real?"}).json()
+    assert body["answer"].startswith("මෙය")
+    assert body["responsible_ai"]["grounding"]["grounded"] is True
+
+
+def test_english_is_left_alone():
+    assert main._in_language("Is this a scam?", "Yes.") == "Yes."
