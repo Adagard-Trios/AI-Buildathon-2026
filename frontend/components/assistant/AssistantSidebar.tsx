@@ -56,13 +56,6 @@ export function AssistantSidebar({ activeTab, onSelectTab }: Props) {
         })}
       </nav>
 
-      {/* Research Note Card */}
-      <div className="mt-4 hidden rounded-xl border border-blue-100 bg-blue-50/50 p-3.5 text-xs text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-300 md:block">
-        <p className="font-semibold text-blue-950 dark:text-blue-200">Research Focus</p>
-        <p className="mt-1 leading-relaxed text-[11px] opacity-90">
-          Evaluates local SLM explainability and human oversight through the Trust Panel.
-        </p>
-      </div>
     </aside>
   );
 }

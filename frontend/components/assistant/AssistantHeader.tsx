@@ -15,14 +15,11 @@ export function AssistantHeader() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold tracking-tight text-neutral-900 dark:text-white">
-                FinTrust AI
+                Ask FirstStep
               </h1>
-              <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-                PROTOTYPE — Component 4
-              </span>
             </div>
             <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">
-              Agentic Financial Assistant & Trust Panel
+              Answers come from FirstStep&apos;s own checks, and every figure is verified before you see it
             </p>
           </div>
         </div>
@@ -37,17 +34,6 @@ export function AssistantHeader() {
             <span>AI Online</span>
           </div>
 
-          <div className="flex items-center gap-2.5 rounded-lg border border-black/10 bg-white px-3 py-1.5 shadow-2xs dark:border-white/15 dark:bg-neutral-800">
-            <div className="flex size-7 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
-              U
-            </div>
-            <div className="hidden text-left sm:block">
-              <p className="text-xs font-semibold text-neutral-800 dark:text-neutral-200">
-                Research User
-              </p>
-              <p className="text-[10px] text-neutral-500">Univ. 4th Year Eval</p>
-            </div>
-          </div>
         </div>
       </div>
     </header>

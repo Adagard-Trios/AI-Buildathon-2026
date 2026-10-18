@@ -196,6 +196,7 @@ function HoldingBands({ symbols }: { symbols: string[] }) {
   }
   return (
     <Card title="Prepared bands per holding" subtitle="Refreshed with each holding's analysis; used by the withdrawal planner.">
+      <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="text-left text-xs uppercase tracking-wide text-neutral-500">
           <tr>
@@ -239,6 +240,7 @@ function HoldingBands({ symbols }: { symbols: string[] }) {
           )}
         </tbody>
       </table>
+      </div>
     </Card>
   );
 }
