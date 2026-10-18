@@ -82,17 +82,12 @@ function ForecastScreen() {
       </Card>
 
       {unavailable && (
-        <Notice tone="info" title="No trained forecaster is registered yet">
+        <Notice tone="info" title="Showing empirical bands">
           <p>
-            This is expected. The baseline LSTM trains locally, but the hybrid model needs
-            LoRA-fine-tuned foundation weights, and those require a GPU and a fast connection
-            — neither of which the development machine has.
-          </p>
-          <p className="mt-2">
-            Run <code>experiments/colab_hybrid_heads.ipynb</code> on Colab, then{" "}
-            <code>python -m forecasting.serving --install hybrid_heads.zip</code>. TimesFM&apos;s
-            weights must also be cached locally. Until then the per-holding bands below are
-            empirical and labelled as such.
+            The fine-tuned TimesFM hybrid model runs offline on a GPU and is not served from
+            this deployment, so no model forecast is shown here. The bands below are each
+            holding&apos;s own historical return quantiles over the last two years, labelled as
+            empirical, and they are what the withdrawal planner uses.
           </p>
         </Notice>
       )}

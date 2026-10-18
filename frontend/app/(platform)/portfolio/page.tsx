@@ -207,8 +207,22 @@ function PortfolioEditor({
   }, []);
 
   useEffect(() => {
+    const symbols = portfolio.holdings.map((h) => h.symbol).filter(Boolean);
+    // A saved holding the analysis service does not know is re-tracked here: new accounts
+    // start with a portfolio nobody pressed Save on, and the service's active set lives on
+    // an instance that scales to zero. Without this, Forecast/Analysis stay empty.
+    async function ensureTracked() {
+      try {
+        const known = new Set((await analysisStatus(symbols)).symbols.map((s) => s.symbol));
+        const missing = symbols.filter((s) => !known.has(s.toUpperCase()) && !known.has(s));
+        if (missing.length) await trackSymbols(missing);
+      } catch {
+        // informational, as in pollStatus
+      }
+      await pollStatus(symbols);
+    }
     // Started from a timer so no state update can run synchronously inside the effect.
-    const timer = setTimeout(() => void pollStatus(portfolio.holdings.map((h) => h.symbol).filter(Boolean)), 0);
+    const timer = setTimeout(() => void ensureTracked(), 0);
     return () => clearTimeout(timer);
   }, [portfolio.holdings, pollStatus]);
 

@@ -272,9 +272,12 @@ export function PlanResult({ plan }: { plan: WithdrawalResponse }) {
         <p className="text-xs text-neutral-500" data-testid="effective-inputs">
           Planned with urgency {Number(inputs.urgency).toFixed(2)}, risk tolerance{" "}
           {Number(inputs.risk_tolerance).toFixed(2)}, deadline {String(inputs.deadline_days)}d · decisions:{" "}
-          {decision?.source === "laya"
-            ? `Laya (${String(decision.model_version)})`
-            : `fuzzy rules${decision?.reason ? ` — ${String(decision.reason)}` : ""}`}
+          {decision?.source === "laya" ? (
+            `Laya (${String(decision.model_version)})`
+          ) : (
+            // Why Laya was not used is diagnostics, not something to put in front of a customer.
+            <span title={decision?.reason ? String(decision.reason) : undefined}>fuzzy inference rules</span>
+          )}
         </p>
       )}
 

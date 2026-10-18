@@ -24,7 +24,9 @@ const DEFAULT_TX: TransactionInput = {
   location: "Colombo, LK",
   device_id: "dev_trusted_01",
   device_change: false,
-  typing_speed: 4.2,
+  // Keystrokes per MINUTE, as the engine reads it (cold-start baseline 240). The form used to
+  // send 4.2 labelled per second, so every transfer looked like a bot and nothing was allowed.
+  typing_speed: 240,
   navigation_pattern: "normal",
   transaction_frequency: 3,
   beneficiary_change: false,
@@ -120,10 +122,10 @@ export default function FraudPage() {
           <Field label="Device">
             <Input value={tx.device_id} onChange={(e) => set("device_id", e.target.value)} />
           </Field>
-          <Field label="Typing speed" hint="keystrokes/second — a behavioural biometric">
+          <Field label="Typing speed" hint="keystrokes/minute — a behavioural biometric (typical: 150–350)">
             <Input
               type="number"
-              step="0.1"
+              step="10"
               value={tx.typing_speed}
               onChange={(e) => set("typing_speed", Number(e.target.value))}
             />
