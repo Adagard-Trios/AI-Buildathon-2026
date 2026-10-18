@@ -195,7 +195,9 @@ def chat(request: ChatRequest, http: Request, principal=Depends(require("assista
     # Grounding: reject answers with numbers no tool produced
     # ----------------------------------------------
 
-    grounding = check_grounding(response_text, [e["result"] for e in evidence])
+    # Figures may come from a tool or from the user's own message: repeating "30%" back to
+    # someone who asked about a 30% offer is not inventing a number.
+    grounding = check_grounding(response_text, [request.message] + [e["result"] for e in evidence])
     if not grounding["grounded"]:
         response_text = (
             "I can't confirm some figures in my draft answer, so I won't state them. "
