@@ -471,8 +471,8 @@ box(s, 0.3, 2.65, 9.4, 2.2, fill=TINT)
 text(s, 0.5, 2.8, 9.0, 1.95,
      [[("Try it", {"size": 14, "bold": True, "color": ACCENT})],
       [("Register any email: every account starts with a demo portfolio of CSE, US and crypto holdings.", {})],
-      [("Fraud → Scam Shield: paste an investment offer and see the verdict, reasons and scam patterns.", {})],
-      [("Fraud → Check a transfer: tick New beneficiary, amount 30,000 → STEP-UP → enter the code.", {})],
+      [("Fraud → Check a transfer: tick New beneficiary, amount 30,000 → Score → answer “what is it for?” by pasting an offer → STOP → cancel, or tick the warning and enter the code. (If it says BLOCK, type a new name in User.)", {})],
+      [("Fraud → Scam Shield: paste any offer on its own and see the same verdict, reasons and scam patterns.", {})],
       [("Audit → Tamper-evidence: anchor, verify, tamper, verify again.", {})],
       [("Services scale to zero to keep cost near nothing: the first click on a quiet service takes ~15 s.",
         {"color": MUTED, "size": 10})]], size=11.5, spacing=5)
