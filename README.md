@@ -48,7 +48,7 @@ never confused.
 |---|---|---|
 | **Web app** | Next.js on Cloud Run: <https://firststep-web-214625202650.us-central1.run.app> | Register any email; every new account gets a starter portfolio |
 | **Platform** | Accounts, portfolios, RS256 token signing (JWKS) | One warm instance; SQLite, so accounts reset on each platform deploy |
-| **C1 Portfolio** | Cash Planner (fuzzy + GA + baselines), MOEA/D, empirical forecast bands, **Laya zero-shot** decision layer | The fine-tuned TimesFM hybrid is evaluated offline (section 20), not served |
+| **C1 Portfolio** | Cash Planner (fuzzy + GA + baselines), MOEA/D, empirical forecast bands; decisions by fuzzy rules (Laya not served yet) | The fine-tuned TimesFM hybrid is evaluated offline (section 20), not served |
 | **C2 Fraud** | Scam Shield (SHIELD-P001), transaction gateway G1-G7, STEP-UP | Gemini reads red flags when a key with credit is configured; otherwise rules, and the verdict says which |
 | **C3 Audit** | Policy, canonical hashing, OData, tamper demo, **AuditRegistry.sol on a Hardhat EVM inside the service** | Private chain that lives as long as the instance; Sepolia is the next step |
 | **C4 Assistant** | LangGraph agent on Gemini, grounding validator, Trust Panel | Answers only when Gemini is reachable; otherwise says so, never invents |
@@ -363,13 +363,10 @@ small human-checked set keeps Gemini's labels honest.
 
 ### 6.6 Using Laya safely
 
-- **Fine-tuned for production.** The model card reports zero-shot typed-decision accuracy near
-  the random baseline and describes Laya as a base to specialise. **Interim:** the deployed C1
-  serves the base model zero-shot (`laya-base-0.4.1-zero-shot`) for the Cash Planner's
-  per-holding decisions until the Colab-trained head is registered. Its answers are used only
-  at confidence >= 0.6, only nudge fuzzy priorities, and never set an amount; the GA computes
-  every amount and the response records which answers were applied. Scam Shield and the
-  assistant do not use Laya.
+- **Fine-tuned only.** The model card reports zero-shot typed-decision accuracy near the random
+  baseline and describes Laya as a base to specialise. No head is used without fine-tuning.
+  (A zero-shot trial on Cloud Run was rolled back: the news stage and the decision layer each
+  loaded their own copy of the 808 MB base, which exceeded the instance's memory.)
 - **Confidence is not trusted alone.** The model card warns the model can stay confident while
   wrong, so escalation uses verdict bands and shadow checks, not Laya's confidence.
 - **Languages are validated, not assumed.** Sinhala, Tamil and code-mixed accuracy is measured
@@ -1014,7 +1011,7 @@ runs on Google Cloud, so no row below says "done".
 |---|---|
 | Shared OData layer and auth | Built locally (`shared/`); ETag / `If-Match` on Platform `Portfolios` only; not tested with Excel or Power BI; no `$search`, `$apply` |
 | Platform service | **Live on Cloud Run** (SQLite, RS256 + JWKS, client credentials, staff roles); Firestore not implemented |
-| Laya serving, distillation, eval scripts | Built locally. **C1 serves the base model zero-shot on Cloud Run** for Cash Planner decisions (confidence-gated, never sets amounts); no fine-tuned head yet. Scam Shield and the assistant do not use Laya |
+| Laya serving, distillation, eval scripts | Built locally; **no fine-tuned checkpoint exists**, so Laya serves nothing yet and every call routes to Gemini or rules |
 | C1 Photo-to-Portfolio, Report Reader | Built locally; Gemini path tested with a mock only |
 | C1 Cash Planner, MOEA/D | **Live on Cloud Run**; forecasts are labelled empirical bands. Hybrid TimesFM model trained and evaluated offline (RQ1 above), not served; BigQuery `AI.FORECAST` SQL written, unrun |
 | C2 Scam Shield | Built locally; seed registry and corpus are tiny; RDAP domain age and Web Risk are opt-in (`RDAP_ENABLED`, `WEBRISK_API_KEY`) and untested live; Vertex AI Search / vector search not wired |
@@ -1044,9 +1041,8 @@ runs on Google Cloud, so no row below says "done".
    perimeter is documented but not enforced.
 8. **On-chain anchoring uses a private chain** inside the audit service today (a testnet is the
    target) and a hash-commitment scheme, not zero-knowledge proofs.
-9. **Laya runs zero-shot** in the Cash Planner until a fine-tuned head is trained; the model
-   card puts zero-shot typed decisions near random, which is why its answers are gated and
-   never set amounts.
+9. **Laya is not served yet.** It needs a fine-tuned head per task; until then the Cash
+   Planner decides with fuzzy rules and news relevance uses keywords.
 10. **Accounts reset on each platform deploy** (SQLite on the instance); Firestore is planned.
 11. **Forecasts are bands, not predictions.**
 12. **Portfolios are user-supplied.** There is no brokerage connection.
