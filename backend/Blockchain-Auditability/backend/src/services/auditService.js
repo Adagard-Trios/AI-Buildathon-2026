@@ -81,6 +81,17 @@ class AuditService {
       };
     }
 
+    // A decision waiting for a reviewer has no commitment yet. Reporting that as an integrity
+    // failure accused an untouched record of being tampered with.
+    if (record.finalDecision === "PENDING_HUMAN_REVIEW") {
+      return {
+        verified: false,
+        status: "PENDING_REVIEW",
+        message: "This decision is waiting for human review and has not been anchored yet.",
+        details: { transactionId }
+      };
+    }
+
     // 1. Reconstruct canonical representation & compute hash
     const { hash: calculatedHash, canonicalPayload } = record.kind === "event"
       ? hashService.generateEventHash(record.event)
