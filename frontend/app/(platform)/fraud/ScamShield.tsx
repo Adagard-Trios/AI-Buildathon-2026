@@ -68,6 +68,35 @@ function VerdictSeal({ verdict }: { verdict: ShieldVerdict }) {
         ) : (
           <p className="mt-2 text-sm text-muted">No red flags matched the message.</p>
         )}
+        {verdict.patterns && verdict.patterns.length > 0 && (
+          <div className="mt-5">
+            <h3 className="text-sm font-semibold">Known scam patterns</h3>
+            <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+              {verdict.patterns.map((p) => (
+                <li key={p.id} className="rounded-xl border border-line p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-medium">{p.title}</p>
+                    <span
+                      title="Open Knowledge Format trust tier"
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                        p.trust === "human-reviewed" ? "bg-accent-tint text-accent" : "bg-sunken text-muted"
+                      }`}
+                    >
+                      {p.trust}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted">{p.description}</p>
+                  {p.sources.filter((s) => s.resource?.startsWith("http")).slice(0, 1).map((s) => (
+                    <a key={s.resource} href={s.resource} target="_blank" rel="noreferrer"
+                       className="mt-1.5 inline-block text-xs font-medium text-accent underline-offset-2 hover:underline">
+                      Source: {s.title}
+                    </a>
+                  ))}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <p className="mt-4 border-t border-line pt-3 text-xs text-muted">
           Decided by policy {verdict.policy_version}
           {verdict.fired_rules.length > 0 && ` (rules ${verdict.fired_rules.join(", ")})`}. Red flags read by{" "}

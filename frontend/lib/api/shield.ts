@@ -14,6 +14,19 @@ export interface ShieldVerdict {
   policy_version: string;
   flag_source: string;
   links: string[];
+  /** OKF scam-pattern concepts the verdict rests on (backend/Fraud-Detection/knowledge). */
+  patterns?: ScamPattern[];
+}
+
+export interface ScamPattern {
+  id: string;
+  title: string;
+  description: string;
+  rules: string[];
+  /** OKF trust tier, derived from the concept's `verified` field. */
+  trust: "unverified" | "machine-confirmed" | "human-reviewed";
+  stale: boolean;
+  sources: { title: string; resource: string }[];
 }
 
 export function checkMessage(text: string): Promise<ShieldVerdict> {

@@ -49,7 +49,7 @@ never confused.
 | **Web app** | Next.js on Cloud Run: <https://firststep-web-214625202650.us-central1.run.app> | Register any email; every new account gets a starter portfolio |
 | **Platform** | Accounts, portfolios, RS256 token signing (JWKS) | One warm instance; SQLite, so accounts reset on each platform deploy |
 | **C1 Portfolio** | Cash Planner (fuzzy + GA + baselines), MOEA/D, empirical forecast bands; decisions by fuzzy rules (Laya not served yet) | The fine-tuned TimesFM hybrid is evaluated offline (section 20), not served |
-| **C2 Fraud** | Scam Shield (SHIELD-P001), transaction gateway G1-G7, STEP-UP | Gemini reads red flags when a key with credit is configured; otherwise rules, and the verdict says which |
+| **C2 Fraud** | Scam Shield (SHIELD-P001), transaction gateway G1-G7, STEP-UP, scam-pattern knowledge in **Google's Open Knowledge Format (OKF)** | Gemini reads red flags when a key with credit is configured; otherwise rules, and the verdict says which |
 | **C3 Audit** | Policy, canonical hashing, OData, tamper demo, **AuditRegistry.sol on a Hardhat EVM inside the service** | Private chain that lives as long as the instance; Sepolia is the next step |
 | **C4 Assistant** | LangGraph agent on Gemini, grounding validator, Trust Panel | Answers only when Gemini is reachable; otherwise says so, never invents |
 | **Deploy** | GitHub Actions on every push to `main`, keyless (Workload Identity Federation) | Only changed services rebuild; `infra/deploy/deploy_lean.sh` |
@@ -452,6 +452,15 @@ Answers cite the page. Ratios are computed in code.
 
 ### 8.1 Scam Shield (messages and offers)
 
+**Knowledge in Open Knowledge Format.** The scam patterns Scam Shield recognises live in
+`backend/Fraud-Detection/knowledge/scam-patterns/` as an OKF v0.2 bundle (Google Cloud's open
+spec for agent-readable knowledge): one markdown concept per pattern with YAML frontmatter for
+sources, `generated` / `verified` trust signals and `stale_after`, plus the SHIELD-P001 rules
+that fire on it. Every verdict cites the concepts it rests on with their trust tier
+(*unverified*, *machine-confirmed*, *human-reviewed*), and `GET /shield/knowledge` serves the
+bundle. A reviewer promotes a pattern by adding a `human:` entry to `verified`; the bundle
+informs, and the policy alone decides.
+
 | Input | Handling |
 |---|---|
 | Text (SMS, WhatsApp, Telegram, email) | Gemini-taught red-flag questions, answered by the Laya fast path where validated; Gemini answers directly for `CAUTION` cases, unvalidated languages and shadow checks |
@@ -785,6 +794,7 @@ Every arrow across a boundary carries a token that is verified on arrival.
 | Fresh facts | **Grounding with Google Search** | C2 |
 | Licensed-entity lookup | **Vertex AI Search** | C2 |
 | Scam-script similarity | **Vertex AI Vector Search** / BigQuery vector search | C2 |
+| Scam-pattern knowledge | **Open Knowledge Format (OKF)** bundle, cited in every verdict | C2, C4 |
 | Forecasting | **BigQuery ML `AI.FORECAST` (TimesFM)** | C1 |
 | Fraud models and attributions | **BigQuery ML**, `ML.EXPLAIN_PREDICT` | C2, C4 |
 | Documents | **Document AI** | C1 |

@@ -12,6 +12,7 @@ from dataclasses import asdict
 
 from . import evidence as ev
 from . import flags as fl
+from . import knowledge
 from . import routing
 from .policy import Evidence, evaluate
 
@@ -51,6 +52,8 @@ def check_message(text: str, owner: str | None = None) -> dict:
         "flags": flags,
         "evidence": asdict(evidence),
         "links": links,
+        # The OKF scam-pattern concepts this verdict rests on (context, never the decision).
+        "patterns": knowledge.patterns_for(verdict.fired_rules, flags),
     }
     with _lock:
         VERDICTS.append({
