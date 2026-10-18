@@ -458,8 +458,10 @@ spec for agent-readable knowledge): one markdown concept per pattern with YAML f
 sources, `generated` / `verified` trust signals and `stale_after`, plus the SHIELD-P001 rules
 that fire on it. Every verdict cites the concepts it rests on with their trust tier
 (*unverified*, *machine-confirmed*, *human-reviewed*), and `GET /shield/knowledge` serves the
-bundle. A reviewer promotes a pattern by adding a `human:` entry to `verified`; the bundle
-informs, and the policy alone decides.
+bundle. All seven patterns are *machine-confirmed*: CI checks that each one's rules and flags
+exist in SHIELD-P001 and its evidence. That is a consistency check, not a review of the wording;
+a reviewer promotes a pattern by adding a `human:` entry to `verified`. The bundle informs, and
+the policy alone decides.
 
 | Input | Handling |
 |---|---|

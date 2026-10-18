@@ -94,7 +94,7 @@ test("assistant answers a real question with its evidence trail", async ({ page,
   // The transcript opens with a seeded exchange, so this label is already on the page once.
   // Counting it is what distinguishes a new turn from the furniture that was always there --
   // matching /Assistant/ would also match the nav link and the page heading.
-  const agentLabel = page.getByText("FinTrust Agent");
+  const agentLabel = page.getByText("FirstStep", { exact: true });
   const before = await agentLabel.count();
 
   await input.fill(question);
