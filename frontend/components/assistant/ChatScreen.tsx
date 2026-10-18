@@ -169,7 +169,7 @@ export function ChatScreen({ onNavigateToExplanation }: Props) {
                     {msg.toolsCalled && (
                       <span className="flex items-center gap-1 rounded-full bg-neutral-200/70 px-2.5 py-0.5 text-[11px] font-bold text-neutral-700 dark:bg-neutral-700 dark:text-neutral-200">
                         <WrenchIcon className="size-3" />
-                        {msg.toolsCalled.length} tools called
+                        {msg.toolsCalled.length} {msg.toolsCalled.length === 1 ? "tool" : "tools"} called
                       </span>
                     )}
                   </div>

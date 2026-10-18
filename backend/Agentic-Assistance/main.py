@@ -179,6 +179,8 @@ def chat(request: ChatRequest, http: Request, principal=Depends(require("assista
     final_message = messages[-1]
 
     response_text = _in_language(request.message, _text(final_message.content))
+    # Models sometimes echo the "[Reply in ...]" instruction back as the first line.
+    response_text = re.sub(r"^\s*\[Reply in [^\]]*\]\s*", "", response_text)
 
     # ----------------------------------------------
     # Extract tools used

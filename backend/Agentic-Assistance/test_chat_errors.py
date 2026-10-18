@@ -72,3 +72,12 @@ def test_answer_is_translated_when_the_model_ignores_the_language(monkeypatch):
 
 def test_english_is_left_alone():
     assert main._in_language("Is this a scam?", "Yes.") == "Yes."
+
+
+def test_echoed_language_instruction_is_removed(monkeypatch):
+    from langchain_core.messages import AIMessage
+
+    monkeypatch.setattr(main.agent, "invoke", lambda state: {"messages": state["messages"] + [
+        AIMessage(content="[Reply in සිංහල]\nමෙය වංචාවකි.")]})
+    body = TestClient(main.app).post("/assistant/chat", json={"message": "[Reply in සිංහල] Is this a scam?"}).json()
+    assert body["answer"] == "මෙය වංචාවකි."
