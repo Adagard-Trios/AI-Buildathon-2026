@@ -136,7 +136,7 @@ the sealed record), then the numbers, then the FirstStep mark and the URL.
 eleven live checks pass. Sri Lanka's central bank made 'Be Scam Proof' this year's theme;
 FirstStep is the checkpoint that makes it real."
 
-**Caption:** `6/6 services on Cloud Run · 11/11 live checks · 176+ tests · <SCAM EVAL RESULT>`
+**Caption:** `6/6 services on Cloud Run · 11/11 live checks · 176+ tests · Scam Shield 20/20 scams, 0 false alarms (40 synthetic msgs, Gemini)`
 
 ---
 

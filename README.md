@@ -1023,6 +1023,21 @@ bash infra/network/create_vpcsc_perimeter.sh     # requires an organization
 
 All results are reported with test-set sizes. Negative results are reported, not tuned away.
 
+### Results so far: Scam Shield (C2)
+
+40 labelled English messages (20 scams across investment, crypto, lottery, bank and authority
+impersonation, OTP, jobs, delivery, romance and pyramid patterns; 20 legitimate bank alerts,
+genuine OTPs, broker notes, bills and family messages): `eval/scam_synthetic_v1.jsonl`.
+
+| Red flags read by | Scams caught (recall) | Precision | False-positive rate |
+|---|---|---|---|
+| Rules only (`python eval/scam_eval.py eval/scam_synthetic_v1.jsonl`) | 9 / 20 (45%) | 1.00 | 0 / 20 |
+| **Gemini + rules**, live Cloud Run service | **20 / 20 (100%)** | **1.00** | **0 / 20** |
+
+With Gemini, 17 scams were HIGH_RISK and 3 CAUTION. Limits, stated plainly: the set is small,
+synthetic and written by the team, English only; Sinhala and Tamil are not yet measured, and a
+real labelled Sri Lankan set is the next step.
+
 ### Results so far: RQ1, forecast quality (C1)
 
 Walk-forward backtest, 5-day horizon, no look-ahead, scored on the 7 folds every model shares
