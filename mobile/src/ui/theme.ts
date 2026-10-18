@@ -1,21 +1,24 @@
 // Calm, high-contrast, large type: the customer is often an older first-time investor.
 
+// The same passbook palette as the web app, so FirstStep looks like one product on both.
+// Every text colour clears 4.5:1 on bg and card (measured: text 15.3, muted 5.8, brand 5.7,
+// danger 6.0, warn 5.8 on bg; tinted pairs 5.5+).
 export const c = {
-  bg: "#F6F7F9",
+  bg: "#F3F5F4",
   card: "#FFFFFF",
-  text: "#111418",
-  muted: "#5B6470",
-  line: "#E3E6EA",
-  brand: "#1F5EFF",
+  text: "#14201F",
+  muted: "#55625F",
+  line: "#DDE3E1",
+  brand: "#0B6E4F",
   brandText: "#FFFFFF",
-  danger: "#C62828",
-  dangerBg: "#FDECEC",
-  warn: "#9A5B00",
-  warnBg: "#FFF4E0",
-  ok: "#1E7B3A",
-  okBg: "#E7F6EC",
-  info: "#1F5EFF",
-  infoBg: "#EAF0FF",
+  danger: "#B42318",
+  dangerBg: "#FDECEA",
+  warn: "#8A5300",
+  warnBg: "#FDF3E1",
+  ok: "#0B6E4F",
+  okBg: "#E7F4EE",
+  info: "#14201F",
+  infoBg: "#E9EEEC",
 };
 
 export const s = {
