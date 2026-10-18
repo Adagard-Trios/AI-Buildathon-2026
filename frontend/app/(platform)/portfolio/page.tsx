@@ -253,6 +253,31 @@ function PortfolioEditor({
     setBusy(false);
   }
 
+  // Confirmed statement rows: a symbol already held takes the statement's quantity and cost
+  // (the customer ticked that row), a new one is appended; either way rows without a traded
+  // value are quoted at once, so price and liquidity are live before anything is planned.
+  async function importRows(rows: Holding[]) {
+    const next = [...draft];
+    let updated = 0;
+    for (const row of rows) {
+      const at = next.findIndex((h) => h.symbol.toUpperCase() === row.symbol.toUpperCase());
+      if (at >= 0) {
+        next[at] = { ...next[at], quantity: row.quantity, cost_basis: row.cost_basis ?? next[at].cost_basis };
+        updated += 1;
+      } else {
+        next.push(row);
+      }
+    }
+    setDraft(next);
+    setQuoteError(null);
+    onMessage(
+      `From the statement: ${rows.length - updated} added, ${updated} updated. Getting live prices; press Save to keep the changes.`,
+    );
+    await Promise.all(
+      next.map((h, i) => (h.avg_daily_volume > 0 || !h.symbol ? Promise.resolve(false) : quoteRow(i, h.symbol))),
+    );
+  }
+
   async function handleSave() {
     setBusy(true);
     setSaveError(null);
@@ -305,7 +330,7 @@ function PortfolioEditor({
       </div>
 
       <div className="mt-6">
-        <StatementImport onConfirm={(rows) => setDraft((current) => [...current, ...rows.filter((r) => !current.some((c) => c.symbol === r.symbol))])} />
+        <StatementImport onConfirm={(rows) => void importRows(rows)} />
       </div>
 
       <Card
