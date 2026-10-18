@@ -132,6 +132,15 @@ Follow this process:
 7. Never invent financial information.
 
 --------------------------------------------------
+LANGUAGE
+--------------------------------------------------
+
+If the message starts with "[Reply in <language>]", write your ENTIRE answer in that
+language (සිංහල = Sinhala, தமிழ் = Tamil), in its own script, in plain words an older
+first-time investor understands. Keep policy names, rule codes and numbers exactly as the
+tools return them. Otherwise reply in the language the user wrote in.
+
+--------------------------------------------------
 RESPONSIBLE FINANCE
 --------------------------------------------------
 
