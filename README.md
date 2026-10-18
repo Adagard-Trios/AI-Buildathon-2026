@@ -795,7 +795,7 @@ a planned service today is named in the last column.
 | Need | Google technology | Status | Today |
 |---|---|---|---|
 | Services, build, deploy | **Cloud Run**, **Cloud Build**, **Artifact Registry**, **Workload Identity Federation** (keyless CI) | Live | Six services; GitHub Actions deploys on every push |
-| Secrets | **Secret Manager** | Live | Signing key, service-client secrets, Gemini key |
+| Secrets | **Secret Manager** | Live | Signing key and service-client secrets; the Gemini key comes from the `GEMINI_API_KEY` GitHub secret when set, else `firststep-gemini-key` |
 | Reasoning, red flags, explanation | **Gemini** (Gemini API) | Live | Scam Shield red flags, the assistant, statement import; rules take over and say so when it is unavailable |
 | Gemini on **Vertex AI** | | Planned | Gemini API via an AI Studio key |
 | Scam-pattern knowledge | **Open Knowledge Format (OKF)** | Live | Bundle cited in every Scam Shield verdict |
@@ -968,7 +968,7 @@ bash infra/network/create_vpcsc_perimeter.sh     # requires an organization
 |---|---|---|
 | `PROJECT_ID`, `REGION` | all | Google Cloud project and region |
 | `GEMINI_MODEL` | C1, C2, C4 | Gemini model ID (default `gemini-3.5-flash-lite`; 2.0-flash and 2.5-flash-lite are retired for new projects) |
-| `GEMINI_API_KEY` | C1, C2, C4 | From Secret Manager (`firststep-gemini-key`) on Cloud Run |
+| `GEMINI_API_KEY` | C1, C2, C4 | The `GEMINI_API_KEY` GitHub secret when set (passed as an env var by CI), else Secret Manager `firststep-gemini-key` |
 | `PLATFORM_ROLES` | Platform | `email:role role;email:role`; known roles `admin`, `auditor`. These accounts are provisioned at startup and cannot be self-registered |
 | `PLATFORM_STAFF_PASSWORD` | Platform | Password for the provisioned staff accounts (12+ characters; GitHub secret `FIRSTSTEP_STAFF_PASSWORD` in CI) |
 | `PLATFORM_STARTER_PORTFOLIO` | Platform | `true` gives every new account the demo portfolio |
