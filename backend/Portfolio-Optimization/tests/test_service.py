@@ -180,6 +180,10 @@ def test_optimize_returns_weights_that_sum_to_one(client) -> None:
     assert body["pareto_front_size"] > 0
     assert body["selection_rationale"]
     assert body["model_version"]
+    # Today's weights in one currency, so the client never sums LKR against USD at par.
+    assert set(body["current_weights"]) == set(body["recommended_weights"])
+    assert sum(body["current_weights"].values()) == pytest.approx(1.0, abs=1e-4)
+    assert body["forecast_used"] in (True, False)
 
 
 def test_optimize_rejects_empty_holdings(client) -> None:

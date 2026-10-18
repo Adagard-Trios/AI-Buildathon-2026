@@ -217,6 +217,7 @@ def run_moead_rebalance(
         "pareto_front_size": len(front),
         "selection_rule": chosen.rule.value,
         "selection_rationale": chosen.rationale,
+        "current_weights": {s: round(float(w), 6) for s, w in zip(symbols, current_weights, strict=True)},
     }
 
 

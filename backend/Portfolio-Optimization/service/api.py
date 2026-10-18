@@ -168,7 +168,11 @@ def _build_portfolio(
             "value": holding.quantity * price,
             "price": price,
             "quantity": holding.quantity,
-            "adv_usd": holding.avg_daily_volume * rate.rate,
+            # A holding added without a quote (e.g. from a statement import) arrives with no
+            # traded value; the prepared snapshot's ADV stands in, so the impact model does not
+            # read it as untradeable.
+            "adv_usd": (holding.avg_daily_volume if holding.avg_daily_volume > 0
+                        else float(metrics.get("adv_value") or 0.0)) * rate.rate,
             "daily_volatility": float(metrics.get("daily_volatility", DEFAULT_DAILY_VOLATILITY)),
             "volatility_pct": float(metrics.get("volatility_pct", DEFAULT_VOLATILITY_PCT)),
             "cost_basis": (holding.cost_basis if holding.cost_basis is not None else holding.current_price) * rate.rate,
@@ -294,6 +298,8 @@ def optimize_portfolio(
         selection_rationale=result["selection_rationale"],
         model_version=_model_version(),
         generated_at=_now(),
+        current_weights=result.get("current_weights"),
+        forecast_used=any("expected_return" in holding for holding in state.values()),
     )
 
     event = publish_decision("optimize", request.model_dump(mode="json"),
