@@ -59,7 +59,7 @@ class BlockchainService {
           blockchainTxId: receipt.hash,
           blockNumber: receipt.blockNumber,
           isMock: false,
-          network: "Hardhat Local Network (ChainId: 31337)"
+          network: "Hardhat EVM, AuditRegistry contract (chain 31337, runs with this service)"
         };
       } catch (err) {
         console.error("[BlockchainService] Smart contract execution error, falling back to mock:", err.message);
@@ -83,7 +83,7 @@ class BlockchainService {
       blockchainTxId: mockTxHash,
       blockNumber: Math.floor(1000 + Math.random() * 9000),
       isMock: true,
-      network: "Simulated Local Blockchain Adapter"
+      network: "Fallback ledger (chain unavailable)"
     };
   }
 
@@ -131,7 +131,7 @@ class BlockchainService {
   getStatus() {
     return {
       isLiveNetwork: this.isLiveNetwork,
-      mode: this.isLiveNetwork ? "Hardhat Local Blockchain (Ethers.js)" : "Simulated Blockchain Adapter",
+      mode: this.isLiveNetwork ? "Hardhat EVM with the AuditRegistry contract (Ethers.js)" : "Fallback ledger (chain unavailable)",
       rpcUrl: "http://127.0.0.1:8545"
     };
   }

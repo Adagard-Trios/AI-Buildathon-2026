@@ -140,7 +140,8 @@ deploy_platform() {
 }
 deploy_c3() {
   local img; img="$(build c3-audit . infra/docker/node-audit.Dockerfile)"
-  run c3-audit "$img" 8080 512Mi 0 1 "$COMMON@PROJECT_ID=${PROJECT_ID}"
+  # 1Gi: the instance also runs the Hardhat node the registry contract lives on.
+  run c3-audit "$img" 8080 1Gi 0 1 "$COMMON@PROJECT_ID=${PROJECT_ID}"
 }
 deploy_c2() {
   local img; img="$(build c2-fraud . infra/docker/python-service.Dockerfile SERVICE_DIR=backend/Fraud-Detection APP=app:app)"
