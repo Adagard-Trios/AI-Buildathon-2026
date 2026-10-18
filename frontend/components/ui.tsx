@@ -26,12 +26,12 @@ export function Card({
 }) {
   return (
     <section
-      className={`rounded-xl border border-black/10 bg-white p-5 shadow-sm dark:border-white/15 dark:bg-neutral-900 ${className}`}
+      className={`rounded-2xl border border-line bg-surface p-5 sm:p-6 ${className}`}
     >
       {title && (
         <header className="mb-4">
-          <h2 className="text-base font-semibold">{title}</h2>
-          {subtitle && <p className="mt-1 text-sm text-neutral-500">{subtitle}</p>}
+          <h2 className="text-[17px] font-semibold tracking-tight">{title}</h2>
+          {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
         </header>
       )}
       {children}
@@ -46,17 +46,18 @@ export function Button({
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "secondary" | "danger";
 }) {
+  // One filled colour on a screen: the primary action. Destructive actions are outlined in
+  // red so they never compete with Save for the eye.
   const styles = {
-    primary: "bg-neutral-900 text-white hover:bg-neutral-700 dark:bg-white dark:text-neutral-900",
-    secondary:
-      "border border-black/15 hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10",
-    danger: "bg-red-600 text-white hover:bg-red-500",
+    primary: "bg-accent text-accent-ink hover:brightness-110 active:brightness-95",
+    secondary: "border border-line bg-surface hover:bg-sunken",
+    danger: "border border-danger/40 text-danger hover:bg-danger-tint",
   }[variant];
 
   return (
     <button
       {...props}
-      className={`rounded-lg px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${styles} ${props.className ?? ""}`}
+      className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${styles} ${props.className ?? ""}`}
     >
       {children}
     </button>
@@ -74,9 +75,9 @@ export function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium">{label}</span>
+      <span className="mb-1.5 block text-sm font-medium">{label}</span>
       {children}
-      {hint && <span className="mt-1 block text-xs text-neutral-500">{hint}</span>}
+      {hint && <span className="mt-1 block text-xs text-muted">{hint}</span>}
     </label>
   );
 }
@@ -85,7 +86,7 @@ export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`w-full rounded-lg border border-black/15 bg-transparent px-3 py-2 text-sm outline-none focus:border-neutral-500 dark:border-white/20 ${props.className ?? ""}`}
+      className={`min-h-10 w-full rounded-xl border border-line bg-surface px-3 text-sm transition focus:border-accent ${props.className ?? ""}`}
     />
   );
 }
@@ -101,17 +102,24 @@ export function Notice({
   title?: string;
   children?: ReactNode;
 }) {
+  // Tone is never carried by colour alone: each one has its own glyph.
   const styles = {
-    info: "border-blue-500/30 bg-blue-500/5 text-blue-900 dark:text-blue-200",
-    warn: "border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-200",
-    error: "border-red-500/40 bg-red-500/10 text-red-900 dark:text-red-200",
-    success: "border-emerald-500/40 bg-emerald-500/10 text-emerald-900 dark:text-emerald-200",
+    info: "bg-sunken text-ink",
+    warn: "bg-caution-tint text-caution",
+    error: "bg-danger-tint text-danger",
+    success: "bg-accent-tint text-accent",
   }[tone];
+  const glyph = { info: "i", warn: "!", error: "×", success: "✓" }[tone];
 
   return (
-    <div className={`rounded-lg border p-3 text-sm ${styles}`}>
+    <div role={tone === "error" ? "alert" : "status"} className={`flex gap-3 rounded-xl p-3.5 text-sm ${styles}`}>
+      <span aria-hidden className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border border-current text-[11px] font-bold">
+        {glyph}
+      </span>
+      <div className="min-w-0">
       {title && <p className="font-semibold">{title}</p>}
-      {children && <div className={title ? "mt-1" : ""}>{children}</div>}
+      {children && <div className={`${title ? "mt-1" : ""} text-ink/85`}>{children}</div>}
+      </div>
     </div>
   );
 }
@@ -127,16 +135,16 @@ export function Stat({
 }) {
   return (
     <div>
-      <p className="text-xs uppercase tracking-wide text-neutral-500">{label}</p>
-      <p className="mt-1 text-xl font-semibold tabular-nums">{value}</p>
-      {hint && <p className="mt-0.5 text-xs text-neutral-500">{hint}</p>}
+      <p className="text-xs font-medium text-muted">{label}</p>
+      <p className="figures mt-1 text-2xl font-semibold">{value}</p>
+      {hint && <p className="mt-0.5 text-xs text-muted">{hint}</p>}
     </div>
   );
 }
 
 export function Spinner({ label = "Loading" }: { label?: string }) {
   return (
-    <p className="flex items-center gap-2 text-sm text-neutral-500">
+    <p role="status" className="flex items-center gap-2 text-sm text-muted">
       <span className="inline-block size-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
       {label}
     </p>

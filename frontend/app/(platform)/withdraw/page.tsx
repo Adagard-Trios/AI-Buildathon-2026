@@ -77,7 +77,7 @@ function WithdrawScreen() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">Instant withdrawal</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Instant withdrawal</h1>
         <p className="mt-1 text-sm text-neutral-500">
           Plans a loss-minimized liquidation across {portfolio.holdings.length} holdings, each in its own
           trading currency, converted to {baseCurrency} with the current rate and conversion spread.

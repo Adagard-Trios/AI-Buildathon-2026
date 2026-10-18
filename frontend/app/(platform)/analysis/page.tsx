@@ -52,7 +52,7 @@ function AnalysisScreen() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">Holding analysis</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Holding analysis</h1>
         <select
           aria-label="Holding"
           value={selected}

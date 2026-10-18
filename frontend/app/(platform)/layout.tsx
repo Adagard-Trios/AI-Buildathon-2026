@@ -37,6 +37,12 @@ const NAV: NavItem[] = [
   { href: "/assistant", label: "Assistant", component: "4", ready: true },
 ];
 
+// Grouped by what people come to do, not by which team built it.
+const GROUPS = [
+  { label: "Money", items: NAV.filter((n) => n.component === "1") },
+  { label: "Safety", items: NAV.filter((n) => n.component !== "1") },
+];
+
 function Shell({ children }: { children: ReactNode }) {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
@@ -58,49 +64,80 @@ function Shell({ children }: { children: ReactNode }) {
 
   if (!user) return null; // redirect in flight
 
+  const initials = user.display_name
+    .split(/\s+/)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+  const role = user.roles?.length ? user.roles.join(" · ") : "customer";
+
   return (
-    <div className="min-h-dvh">
-      <header className="border-b border-black/10 dark:border-white/15">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 p-4">
-          <Link href="/portfolio" className="font-semibold">
-            Smart Finance Platform
+    <div className="min-h-dvh bg-sunken">
+      <header className="sticky top-0 z-20 border-b border-line bg-surface/90 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 pt-3 sm:px-6">
+          <Link href="/portfolio" className="flex items-center gap-2.5" aria-label="FirstStep home">
+            <BrandMark />
+            <span className="text-[17px] font-semibold tracking-tight">FirstStep</span>
           </Link>
           <div className="flex items-center gap-3 text-sm">
-            <span className="text-neutral-500">{user.display_name}</span>
-            {/* Display only: each service enforces roles from the signed token. */}
-            <span className="rounded bg-black/5 px-2 py-0.5 text-xs dark:bg-white/10">
-              {user.roles?.length ? user.roles.join(" · ") : "customer"}
+            <div className="hidden text-right leading-tight sm:block">
+              <p className="font-medium">{user.display_name}</p>
+              {/* Display only: each service enforces roles from the signed token. */}
+              <p className="text-xs text-muted">{role}</p>
+            </div>
+            <span aria-hidden className="grid size-9 place-items-center rounded-full bg-accent-tint text-xs font-semibold text-accent">
+              {initials || "?"}
             </span>
-            <button onClick={logout} className="underline">
+            <button
+              onClick={logout}
+              className="min-h-9 rounded-lg px-2.5 text-sm font-medium text-muted hover:bg-sunken hover:text-ink"
+            >
               Sign out
             </button>
           </div>
         </div>
 
-        <nav className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4 pb-2 text-sm">
-          {NAV.map((item) => {
-            const active = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                title={`Component ${item.component}${item.ready ? "" : " — not yet implemented"}`}
-                className={`shrink-0 rounded-lg px-3 py-1.5 transition ${
-                  active
-                    ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
-                    : "hover:bg-black/5 dark:hover:bg-white/10"
-                } ${item.ready ? "" : "opacity-50"}`}
-              >
-                {item.label}
-                {!item.ready && <span className="ml-1 text-xs">·</span>}
-              </Link>
-            );
-          })}
+        <nav aria-label="Sections" className="mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-4 py-2 text-sm sm:px-6">
+          {GROUPS.map((group, gi) => (
+            <div key={group.label} className="flex shrink-0 items-center gap-1">
+              {gi > 0 && <span aria-hidden className="mx-2 h-5 w-px bg-line" />}
+              <span className="mr-1 hidden text-xs font-medium uppercase tracking-wider text-muted lg:inline">
+                {group.label}
+              </span>
+              {group.items.map((item) => {
+                const active = pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    className={`flex min-h-9 shrink-0 items-center rounded-lg px-3 font-medium transition ${
+                      active ? "bg-accent-tint text-accent" : "text-ink/80 hover:bg-sunken hover:text-ink"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
       </header>
 
-      <main className="mx-auto max-w-6xl p-4 sm:p-6">{children}</main>
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">{children}</main>
     </div>
+  );
+}
+
+/** A step: two offset blocks. The name is the product's promise (the first step is to stop
+ *  and check), so the mark is drawn from it rather than from a generic finance symbol. */
+function BrandMark() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-7" aria-hidden>
+      <rect x="2" y="12" width="10" height="10" rx="2.5" className="fill-accent" />
+      <rect x="12" y="2" width="10" height="10" rx="2.5" className="fill-accent" opacity="0.55" />
+    </svg>
   );
 }
 

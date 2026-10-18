@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { AuthFrame } from "@/components/AuthFrame";
 import { Button, Card, Field, Input, Notice } from "@/components/ui";
 import { AuthProvider, useAuth } from "@/lib/auth/context";
 
@@ -32,9 +33,7 @@ function LoginForm() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center p-6">
-      <h1 className="mb-1 text-2xl font-semibold">Smart Finance Platform</h1>
-      <p className="mb-6 text-sm text-neutral-500">FirstStep</p>
+    <AuthFrame>
 
       <Card title="Sign in">
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -66,12 +65,12 @@ function LoginForm() {
 
         <p className="mt-4 text-sm text-neutral-500">
           No account?{" "}
-          <Link href="/register" className="underline">
+          <Link href="/register" className="font-medium text-accent underline-offset-2 hover:underline">
             Create one
           </Link>
         </p>
       </Card>
-    </main>
+    </AuthFrame>
   );
 }
 

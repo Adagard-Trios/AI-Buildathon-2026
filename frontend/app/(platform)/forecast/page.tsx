@@ -53,7 +53,7 @@ function ForecastScreen() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">Forecasts</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Forecasts</h1>
         <p className="mt-1 text-sm text-neutral-500">
           p10 / p50 / p90 return quantiles. The interval matters more than the midpoint — the
           CVaR objective on the Optimize screen is computed from it.
