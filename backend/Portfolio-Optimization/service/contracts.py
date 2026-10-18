@@ -82,6 +82,12 @@ class PortfolioResponse(BaseModel):
     generated_at: datetime
     # Id of the decision event anchored in Component 3 (verify via /api/audit/{id}/verify).
     decision_id: str | None = None
+    # Today's weights in the base currency, so the client can show the change without
+    # redoing the FX conversion.
+    current_weights: dict[str, float] | None = None
+    # False when no holding had a model forecast: expected_return is then 0 by construction
+    # and the mix was chosen on risk and trading cost alone.
+    forecast_used: bool | None = None
 
 
 class WithdrawalRequest(BaseModel):
