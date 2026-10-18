@@ -569,6 +569,9 @@ This is a hash-commitment scheme. Zero-knowledge proofs are not implemented.
 
 ### 10.1 Agent design
 
+*Deployed today:* a LangGraph agent on Cloud Run with the same tools and checks, calling Gemini.
+The ADK / Agent Engine version below is the target; its deploy script is written, not run.
+
 ```
 Orchestrator (ADK on Vertex AI Agent Engine, Gemini)
    (Laya fast path pre-classifies intent; Gemini decides the plan)
@@ -785,8 +788,34 @@ Every arrow across a boundary carries a token that is verified on arrival.
 
 ## 14. Google Cloud technology map
 
-| Need | Google technology | Component |
-|---|---|---|
+**Live** runs in the deployed app today. **Offline** was built and evaluated but is not served.
+**Planned** is designed (often with code or scripts written) but not running. What stands in for
+a planned service today is named in the last column.
+
+| Need | Google technology | Status | Today |
+|---|---|---|---|
+| Services, build, deploy | **Cloud Run**, **Cloud Build**, **Artifact Registry**, **Workload Identity Federation** (keyless CI) | Live | Six services; GitHub Actions deploys on every push |
+| Secrets | **Secret Manager** | Live | Signing key, service-client secrets, Gemini key |
+| Reasoning, red flags, explanation | **Gemini** (Gemini API) | Live | Scam Shield red flags, the assistant, statement import; rules take over and say so when it is unavailable |
+| Gemini on **Vertex AI** | | Planned | Gemini API via an AI Studio key |
+| Scam-pattern knowledge | **Open Knowledge Format (OKF)** | Live | Bundle cited in every Scam Shield verdict |
+| Forecasting foundation model | **TimesFM**, fine-tuned with LoRA | Offline | Trained on a Colab T4, evaluated walk-forward (section 20); the app shows empirical bands |
+| Forecasting in SQL | **BigQuery ML `AI.FORECAST`** | Planned | SQL written in `data/sql/`, not run |
+| Agents | **ADK** + **Vertex AI Agent Engine** | Planned | LangGraph agent on Cloud Run calling Gemini; deploy script written |
+| Fast path for fixed checks | **Laya**, distilled from Gemini on **Vertex AI custom training** | Planned | Not served (section 6.6) |
+| Fresh facts, entity lookup, script similarity | **Grounding with Google Search**, **Vertex AI Search**, **Vertex AI Vector Search** | Planned | Seed licensed-entity register and local similarity |
+| Fraud models and attributions | **BigQuery ML**, `ML.EXPLAIN_PREDICT` | Planned | A simulated dual-stream scoring engine plus the deterministic gateway |
+| Documents | **Document AI** | Planned | Gemini reads statement photos |
+| Link safety | **Web Risk API** | Planned | Opt-in code path, untested live |
+| Voice and language | **Speech-to-Text**, **Text-to-Speech**, **Cloud Translation** | Planned | Browser speech APIs; Gemini replies in Sinhala, Tamil or English |
+| Events, analytics, dashboards | **Pub/Sub**, **BigQuery**, **Looker Studio** | Planned | Events go straight to the audit service |
+| Blockchain node | **Blockchain Node Engine** (Ethereum testnet) | Planned | `AuditRegistry.sol` on a Hardhat EVM inside the audit service |
+| App data and identity | **Firestore**, **Firebase Auth**, **App Check**, **Identity-Aware Proxy** | Planned | SQLite on the platform service; the platform's own RS256 tokens and JWKS |
+| Edge and perimeter | **Cloud Load Balancing**, **Cloud Armor**, **VPC Service Controls**, **Binary Authorization** | Planned | Every service verifies tokens itself |
+| Monitoring | **Cloud Logging** | Live | Cloud Run's default logging |
+| Monitoring | **Cloud Audit Logs**, **Security Command Center**, **Vertex AI Experiments** | Planned | Denials sealed in the audit trail; MLflow for experiments |
+
+---|---|---|
 | Reasoning, vision, explanation | **Gemini on Vertex AI** | C1, C2, C4 |
 | Teaching and supervising the fast path | **Gemini** labels training data and shadow-checks answers | C1, C2, C4 |
 | Fast path for fixed checks | **Laya**, distilled from Gemini on **Vertex AI custom training**, served on **Cloud Run (GPU)** | C1, C2, C4 |
