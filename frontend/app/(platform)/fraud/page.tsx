@@ -24,7 +24,9 @@ const DEFAULT_TX: TransactionInput = {
   location: "Colombo, LK",
   device_id: "dev_trusted_01",
   device_change: false,
-  typing_speed: 4.2,
+  // Keystrokes per MINUTE, as the engine reads it (cold-start baseline 240). The form used to
+  // send 4.2 labelled per second, so every transfer looked like a bot and nothing was allowed.
+  typing_speed: 240,
   navigation_pattern: "normal",
   transaction_frequency: 3,
   beneficiary_change: false,
@@ -39,7 +41,7 @@ const TONE: Record<ScoreResponse["decision"], "success" | "warn" | "error"> = {
 };
 
 export default function FraudPage() {
-  const [tab, setTab] = useState<"score" | "shield" | "attack">("score");
+  const [tab, setTab] = useState<"score" | "shield" | "attack">("shield");
   const [tx, setTx] = useState<TransactionInput>(DEFAULT_TX);
   const [result, setResult] = useState<ScoreResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -72,15 +74,14 @@ export default function FraudPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">Fraud detection</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Scam and fraud check</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Scores a transaction through the dual-stream engine, then applies the deterministic
-          gateway. Component 2 · Dhushanthini R.
+          Check a suspicious message, or see how a transfer would be judged before it goes through.
         </p>
       </div>
 
       <div className="flex gap-2 border-b border-neutral-200">
-        {([["score", "Score a transaction"], ["shield", "Scam Shield"], ["attack", "Adversarial robustness"]] as const).map(
+        {([["shield", "Scam Shield"], ["score", "Check a transfer"], ["attack", "Robustness test"]] as const).map(
           ([key, label]) => (
             <button
               key={key}
@@ -120,10 +121,10 @@ export default function FraudPage() {
           <Field label="Device">
             <Input value={tx.device_id} onChange={(e) => set("device_id", e.target.value)} />
           </Field>
-          <Field label="Typing speed" hint="keystrokes/second — a behavioural biometric">
+          <Field label="Typing speed" hint="keystrokes/minute — a behavioural biometric (typical: 150–350)">
             <Input
               type="number"
-              step="0.1"
+              step="10"
               value={tx.typing_speed}
               onChange={(e) => set("typing_speed", Number(e.target.value))}
             />

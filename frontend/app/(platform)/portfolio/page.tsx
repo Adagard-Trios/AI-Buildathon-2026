@@ -125,7 +125,7 @@ function Header({
 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <h1 className="text-xl font-semibold">Portfolio</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Portfolio</h1>
       <div className="flex items-center gap-2">
         {summaries.length > 1 && (
           <select
@@ -207,8 +207,22 @@ function PortfolioEditor({
   }, []);
 
   useEffect(() => {
+    const symbols = portfolio.holdings.map((h) => h.symbol).filter(Boolean);
+    // A saved holding the analysis service does not know is re-tracked here: new accounts
+    // start with a portfolio nobody pressed Save on, and the service's active set lives on
+    // an instance that scales to zero. Without this, Forecast/Analysis stay empty.
+    async function ensureTracked() {
+      try {
+        const known = new Set((await analysisStatus(symbols)).symbols.map((s) => s.symbol));
+        const missing = symbols.filter((s) => !known.has(s.toUpperCase()) && !known.has(s));
+        if (missing.length) await trackSymbols(missing);
+      } catch {
+        // informational, as in pollStatus
+      }
+      await pollStatus(symbols);
+    }
     // Started from a timer so no state update can run synchronously inside the effect.
-    const timer = setTimeout(() => void pollStatus(portfolio.holdings.map((h) => h.symbol).filter(Boolean)), 0);
+    const timer = setTimeout(() => void ensureTracked(), 0);
     return () => clearTimeout(timer);
   }, [portfolio.holdings, pollStatus]);
 
@@ -300,7 +314,7 @@ function PortfolioEditor({
         className="mt-6"
       >
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[960px] text-sm">
             <thead className="text-left text-xs uppercase tracking-wide text-neutral-500">
               <tr>
                 <th className="pb-2">Symbol</th>
@@ -376,7 +390,7 @@ function PortfolioEditor({
                       className="w-28"
                     />
                   </td>
-                  <td className="py-2 text-right tabular-nums">
+                  <td className="py-2 text-right figures">
                     {(holding.quantity * holding.current_price).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                   </td>
                   <td className="py-2 pl-2">
@@ -388,13 +402,14 @@ function PortfolioEditor({
                         {statuses[holding.symbol].status}
                       </span>
                     ) : (
-                      <span className="text-xs text-neutral-500">not saved</span>
+                      <span className="text-xs text-neutral-500" title="Analysis starts once the portfolio is saved">pending</span>
                     )}
                   </td>
                   <td className="py-2 pl-2 text-right">
                     <button
                       onClick={() => setDraft((rows) => rows.filter((_, i) => i !== index))}
-                      className="text-sm text-red-600 hover:underline"
+                      aria-label={`Remove ${holding.symbol || "this row"}`}
+                      className="min-h-9 rounded-lg px-2 text-sm font-medium text-danger hover:bg-danger-tint"
                     >
                       Remove
                     </button>
@@ -415,10 +430,10 @@ function PortfolioEditor({
           <Button variant="secondary" onClick={refreshQuotes} disabled={busy}>
             Refresh quotes
           </Button>
-          <div className="flex-1" />
           <Button variant="danger" onClick={handleDelete} disabled={busy}>
             Delete portfolio
           </Button>
+          <div className="flex-1" />
           <Button onClick={handleSave} disabled={busy}>
             {busy ? "Saving…" : "Save"}
           </Button>

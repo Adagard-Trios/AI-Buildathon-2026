@@ -90,10 +90,10 @@ export default function AuditPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold">Audit trail</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Audit trail</h1>
           <p className="mt-1 text-sm text-neutral-500">
-            Tamper-evident record of AI decisions anchored on-chain. Component 3 · Abeysekara
-            W C S M.
+            Every decision is sealed with a fingerprint the moment it is made. Change one
+            detail later and verification fails.
           </p>
         </div>
         <Button variant="secondary" onClick={refresh} disabled={loading}>

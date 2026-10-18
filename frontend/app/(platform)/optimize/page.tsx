@@ -79,7 +79,7 @@ function OptimizeScreen() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">Long-term allocation</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Long-term allocation</h1>
         <p className="mt-1 text-sm text-neutral-500">
           Three objectives at once: maximize return, minimize CVaR, minimize liquidity cost.
           A mean-variance optimizer optimizes the first two and is blind to the third.

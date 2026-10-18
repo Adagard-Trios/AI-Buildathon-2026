@@ -77,7 +77,7 @@ function WithdrawScreen() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">Instant withdrawal</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Instant withdrawal</h1>
         <p className="mt-1 text-sm text-neutral-500">
           Plans a loss-minimized liquidation across {portfolio.holdings.length} holdings, each in its own
           trading currency, converted to {baseCurrency} with the current rate and conversion spread.
@@ -272,9 +272,12 @@ export function PlanResult({ plan }: { plan: WithdrawalResponse }) {
         <p className="text-xs text-neutral-500" data-testid="effective-inputs">
           Planned with urgency {Number(inputs.urgency).toFixed(2)}, risk tolerance{" "}
           {Number(inputs.risk_tolerance).toFixed(2)}, deadline {String(inputs.deadline_days)}d · decisions:{" "}
-          {decision?.source === "laya"
-            ? `Laya (${String(decision.model_version)})`
-            : `fuzzy rules${decision?.reason ? ` — ${String(decision.reason)}` : ""}`}
+          {decision?.source === "laya" ? (
+            `Laya (${String(decision.model_version)})`
+          ) : (
+            // Why Laya was not used is diagnostics, not something to put in front of a customer.
+            <span title={decision?.reason ? String(decision.reason) : undefined}>fuzzy inference rules</span>
+          )}
         </p>
       )}
 

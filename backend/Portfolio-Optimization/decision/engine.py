@@ -82,7 +82,7 @@ def _base_cached() -> bool:
 
 def _load() -> tuple[LayaEngine | None, str]:
     if find_spec("laya") is None:
-        return None, "laya is not installed (uv sync --extra decision)"
+        return None, "the Laya decision model is not part of this deployment"
     import laya
 
     try:
@@ -103,8 +103,7 @@ def _load() -> tuple[LayaEngine | None, str]:
     except Exception as exc:  # noqa: BLE001
         logger.warning("laya failed to load: %s", exc)
         return None, f"laya failed to load: {type(exc).__name__}: {exc}"
-    return None, ("no fine-tuned Laya head installed and the base checkpoint is not cached "
-                  f"(huggingface-cli download {BASE_REPO})")
+    return None, f"no fine-tuned Laya head is installed and the {BASE_REPO} base is not cached"
 
 
 def _load_in_background() -> None:

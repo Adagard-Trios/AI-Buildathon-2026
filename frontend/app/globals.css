@@ -1,29 +1,133 @@
 @import "tailwindcss";
 
+/*
+ * FirstStep tokens. The visual world is the bank passbook: white paper, ink, a deep
+ * savings-book green for what is safe and confirmed, a stamp red for "stop". Every text
+ * colour below clears 4.5:1 on both surfaces in its appearance (light / dark):
+ *
+ *   ink     16.7 / 15.5      muted   6.4 / 7.6      accent  6.3 / 10.0
+ *   danger   6.6 /  8.0      caution 6.3 / 11.1
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --surface: #ffffff;
+  --sunken: #f3f5f4;
+  --ink: #14201f;
+  --muted: #55625f;
+  --line: #dde3e1;
+  --accent: #0b6e4f;
+  --accent-ink: #ffffff;
+  --accent-tint: #e7f4ee;
+  --danger: #b42318;
+  --danger-tint: #fdecea;
+  --caution: #8a5300;
+  --caution-tint: #fdf3e1;
+  --focus: #0b6e4f;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --surface: #0f1615;
+    --sunken: #18211f;
+    --ink: #e6eeec;
+    --muted: #9aaba7;
+    --line: #2a3633;
+    --accent: #5bd4a8;
+    --accent-ink: #0f1615;
+    --accent-tint: #12302a;
+    --danger: #ff8a7a;
+    --danger-tint: #3a1714;
+    --caution: #f2c266;
+    --caution-tint: #33270f;
+    --focus: #5bd4a8;
   }
 }
 
+@media (prefers-contrast: more) {
+  :root {
+    --muted: var(--ink);
+    --line: var(--ink);
+  }
+}
+
+@theme inline {
+  --color-background: var(--surface);
+  --color-foreground: var(--ink);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-tint: var(--accent-tint);
+  --color-danger: var(--danger);
+  --color-danger-tint: var(--danger-tint);
+  --color-caution: var(--caution);
+  --color-caution-tint: var(--caution-tint);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/*
+ * The screens were built on Tailwind's grey `neutral` scale (text-neutral-500 alone appears
+ * 115 times). Retuning the scale to the passbook's green-grey moves every screen onto the
+ * palette at once; 400 and 500 are kept at 4.5:1+ on white because they carry body text.
+ */
+@theme {
+  --color-neutral-50: #f6f8f7;
+  --color-neutral-100: #eef2f0;
+  --color-neutral-200: #dde3e1;
+  --color-neutral-300: #c3ccc9;
+  --color-neutral-400: #66746f;
+  --color-neutral-500: #55625f;
+  --color-neutral-600: #43504d;
+  --color-neutral-700: #313c3a;
+  --color-neutral-800: #1e2927;
+  --color-neutral-900: #14201f;
+  --color-neutral-950: #0f1615;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--surface);
+  color: var(--ink);
   /* Was `Arial, Helvetica, sans-serif` from the starter, which overrode the Geist font that
-     layout.tsx goes to the trouble of loading. The starter page only looked right because it
-     re-applied `font-sans` on its own wrapper. */
+     layout.tsx goes to the trouble of loading. */
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* Keyboard focus is always visible; mouse clicks do not leave rings behind. */
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Figures line up like a passbook column. */
+.figures {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* The verdict seal settles once, like a stamp; never on repeat. */
+@keyframes stamp {
+  from {
+    opacity: 0;
+    transform: scale(1.08) rotate(-4deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(-2deg);
+  }
 }
