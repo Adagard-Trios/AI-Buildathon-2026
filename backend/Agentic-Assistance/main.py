@@ -20,6 +20,20 @@ from zt_auth import require
 
 _log = logging.getLogger(__name__)
 
+
+def _text(content) -> str:
+    """Message content as plain text. Newer Gemini models return a list of content blocks
+    ({"type": "text", "text": ...}, plus thought signatures) instead of a string, and every
+    check below works on text."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "".join(
+            b if isinstance(b, str) else str(b.get("text", "")) if isinstance(b, dict) and b.get("type", "text") == "text" else ""
+            for b in content
+        )
+    return "" if content is None else str(content)
+
 app = FastAPI(
     title="FinAgent - Agentic Financial Assistant",
     description="Component 4 - Agentic LLM Assistant & Responsible AI",
@@ -128,7 +142,7 @@ def chat(request: ChatRequest, http: Request, principal=Depends(require("assista
 
     final_message = messages[-1]
 
-    response_text = final_message.content
+    response_text = _text(final_message.content)
 
     # ----------------------------------------------
     # Extract tools used
@@ -159,7 +173,7 @@ def chat(request: ChatRequest, http: Request, principal=Depends(require("assista
 
             tool_name = getattr(message, "name", "unknown_tool")
 
-            tool_output = getattr(message, "content", "")
+            tool_output = _text(getattr(message, "content", ""))
 
             evidence.append(
                 {

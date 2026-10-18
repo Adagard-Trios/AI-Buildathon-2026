@@ -16,3 +16,21 @@ def test_model_failure_is_a_503_with_cors(monkeypatch):
     assert "No answer was generated" in response.json()["detail"]
     # The browser can only show the real reason if the error still carries CORS headers.
     assert response.headers.get("access-control-allow-origin") == origin
+
+
+def test_gemini_content_blocks_are_read_as_text(monkeypatch):
+    """Gemini 3.x returns content as a list of blocks; the checks must see the text."""
+    from langchain_core.messages import AIMessage, ToolMessage
+
+    def reply(state):
+        return {"messages": state["messages"] + [
+            ToolMessage(content="SCAM VERDICT: HIGH_RISK\n- Promises a guaranteed return",
+                        name="check_scam_message", tool_call_id="1"),
+            AIMessage(content=[{"type": "text", "text": "This is very likely a scam."},
+                               {"type": "thinking", "thinking": "hidden"}]),
+        ]}
+
+    monkeypatch.setattr(main.agent, "invoke", reply)
+    body = TestClient(main.app).post("/assistant/chat", json={"message": "is this a scam?"}).json()
+    assert body["answer"] == "This is very likely a scam."
+    assert body["agent_execution"]["tools_used"] == ["check_scam_message"]
