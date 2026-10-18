@@ -224,6 +224,14 @@ async def shield_check(request: ShieldRequest, http: Request) -> Dict[str, Any]:
     return check_message(request.text, owner=_caller_subject(http))
 
 
+@app.get("/shield/knowledge", tags=["governance"])
+async def shield_knowledge() -> Dict[str, Any]:
+    """The OKF scam-pattern bundle Scam Shield cites, with each concept's trust tier."""
+    from shield import knowledge
+
+    return {"format": "OKF v0.2", "concepts": list(knowledge.concepts())}
+
+
 @app.post("/odata/v1/fraud/SimulateAttack", response_model=AttackResponse, tags=["odata"])
 @app.post("/simulate-attack", response_model=AttackResponse, tags=["research"])
 async def simulate_attack(request: AttackRequest) -> AttackResponse:

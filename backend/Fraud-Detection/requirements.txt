@@ -17,3 +17,4 @@ pydantic>=2.7,<3.0      # request validation and response schemas
 # extension points.
 
 pyjwt[crypto]>=2.8,<3.0         # zero-trust token verification (shared/auth/zt_auth.py)
+PyYAML>=6.0,<7.0           # reads the OKF scam-pattern bundle (shield/knowledge.py)
