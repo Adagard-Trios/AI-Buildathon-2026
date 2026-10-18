@@ -17,6 +17,7 @@ docs/
 eval/
 backend/Portfolio-Optimization/artifacts/
 backend/Portfolio-Optimization/experiments/
-backend/Blockchain-Auditability/blockchain/
+backend/Blockchain-Auditability/blockchain/artifacts/
+backend/Blockchain-Auditability/blockchain/cache/
 backend/Blockchain-Auditability/frontend/
 frontend/e2e/
