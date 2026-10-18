@@ -91,8 +91,13 @@ EOF
   return 0
 }
 
+# A Gemini key reaches C1, C2 and C4 one of two ways. GEMINI_API_KEY in the environment (CI
+# passes the GitHub secret of that name) wins, as a plain env var: the route for whoever can
+# push but cannot add Secret Manager versions. Otherwise the firststep-gemini-key secret.
+GEMINI_API_KEY="${GEMINI_API_KEY:-}"
 GEMINI_SECRET=""
-gemini() { [ -n "$GEMINI_SECRET" ] && echo ",GEMINI_API_KEY=firststep-gemini-key:latest" || true; }
+gemini() { [ -z "$GEMINI_API_KEY" ] && [ -n "$GEMINI_SECRET" ] && echo ",GEMINI_API_KEY=firststep-gemini-key:latest" || true; }
+geminienv() { [ -n "$GEMINI_API_KEY" ] && echo "@GEMINI_API_KEY=${GEMINI_API_KEY}" || true; }
 
 # build <name> <context dir> <dockerfile> [build-arg ...]
 # The shared OData/auth libraries are copied into the context so they land at
@@ -145,17 +150,17 @@ deploy_c3() {
 }
 deploy_c2() {
   local img; img="$(build c2-fraud . infra/docker/python-service.Dockerfile SERVICE_DIR=backend/Fraud-Detection APP=app:app)"
-  run c2-fraud "$img" 8080 512Mi 0 2 "$COMMON@SERVICE_CLIENT_ID=fraud" \
+  run c2-fraud "$img" 8080 512Mi 0 2 "$COMMON@SERVICE_CLIENT_ID=fraud$(geminienv)" \
     "SERVICE_CLIENT_SECRET=firststep-fraud-client-secret:latest$(gemini)"
 }
 deploy_c1() {
   local img; img="$(build c1-portfolio backend/Portfolio-Optimization docker/Dockerfile)"
-  run c1-portfolio "$img" 8000 2Gi 0 1 "$COMMON@SERVICE_CLIENT_ID=portfolio@KAFKA_ENABLED=false@MLFLOW_TRACKING_URI=sqlite:////tmp/mlflow.db" \
+  run c1-portfolio "$img" 8000 2Gi 0 1 "$COMMON@SERVICE_CLIENT_ID=portfolio@KAFKA_ENABLED=false@MLFLOW_TRACKING_URI=sqlite:////tmp/mlflow.db$(geminienv)" \
     "SERVICE_CLIENT_SECRET=firststep-portfolio-client-secret:latest$(gemini)"
 }
 deploy_c4() {
   local img; img="$(build c4-assistant . infra/docker/python-service.Dockerfile SERVICE_DIR=backend/Agentic-Assistance APP=main:app)"
-  run c4-assistant "$img" 8080 1Gi 0 1 "$COMMON@SERVICE_CLIENT_ID=assistant@FRAUD_URL=${C2_URL}@GUARDIAN_ENABLED=true" \
+  run c4-assistant "$img" 8080 1Gi 0 1 "$COMMON@SERVICE_CLIENT_ID=assistant@FRAUD_URL=${C2_URL}@GUARDIAN_ENABLED=true$(geminienv)" \
     "SERVICE_CLIENT_SECRET=firststep-assistant-client-secret:latest$(gemini)"
 }
 deploy_frontend() {
@@ -168,8 +173,9 @@ deploy_frontend() {
 # CI sets SKIP_SETUP=1: the one-time setup (APIs, repo, secrets, IAM) was already done by a
 # human, and the CI deployer is deliberately not allowed to change IAM or create secrets.
 [ "${SKIP_SETUP:-}" = 1 ] || setup
-if g secrets describe firststep-gemini-key >/dev/null 2>&1; then GEMINI_SECRET=1
-else echo "note: no firststep-gemini-key secret; deploying without Gemini" >&2; fi
+if [ -n "$GEMINI_API_KEY" ]; then echo "note: Gemini key from the environment (GEMINI_API_KEY)" >&2
+elif g secrets describe firststep-gemini-key >/dev/null 2>&1; then GEMINI_SECRET=1
+else echo "note: no Gemini key; deploying without Gemini" >&2; fi
 targets=("$@"); [ ${#targets[@]} -eq 0 ] && targets=(platform c3 c2 c1 c4 frontend)
 for t in "${targets[@]}"; do echo "=== deploying $t" >&2; "deploy_$t"; done
 echo "Web app: ${WEB_URL}"
