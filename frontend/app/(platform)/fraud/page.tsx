@@ -13,6 +13,7 @@ import { useState } from "react";
 import { Button, Card, Field, Input, Notice, Stat, money } from "@/components/ui";
 import { ApiError } from "@/lib/api/client";
 import { scoreTransaction, type ScoreResponse, type TransactionInput } from "@/lib/api/fraud";
+import { useAuth } from "@/lib/auth/context";
 
 import { AttackSimulator } from "./AttackSimulator";
 import { ScamShield } from "./ScamShield";
@@ -42,7 +43,13 @@ const TONE: Record<ScoreResponse["decision"], "success" | "warn" | "error"> = {
 
 export default function FraudPage() {
   const [tab, setTab] = useState<"score" | "shield" | "attack">("shield");
-  const [tx, setTx] = useState<TransactionInput>(DEFAULT_TX);
+  const { user } = useAuth();
+  // Each signed-in customer scores as themselves on their own trusted device. The engine learns
+  // from every transfer it sees, so a shared demo identity drifts as more people try it. The
+  // platform layout renders pages only once the user is known, so this is set on first render.
+  const [tx, setTx] = useState<TransactionInput>(() =>
+    user ? { ...DEFAULT_TX, user_id: `u_${user.id}`, device_id: `dev_${user.id}` } : DEFAULT_TX,
+  );
   const [result, setResult] = useState<ScoreResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [unavailable, setUnavailable] = useState(false);
@@ -190,7 +197,7 @@ export default function FraudPage() {
             <Stat label="Risk score" value={result.risk_score.toFixed(3)} />
             <Stat label="Behavioural" value={result.behavioral_score.toFixed(3)} />
             <Stat label="Graph" value={result.graph_score.toFixed(3)} />
-            <Stat label="Amount" value={money(tx.amount)} />
+            <Stat label="Amount" value={money(tx.amount, "LKR")} />
           </div>
 
           {result.signals && result.signals.length > 0 && (

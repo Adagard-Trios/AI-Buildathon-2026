@@ -39,11 +39,12 @@ Rule for the edit: **every ~20 seconds the viewer sees Gemini or Google Cloud do
 3. **Warm every tab first.** Services scale to zero, so the first call on a quiet service takes
    about 15 s. Open Portfolio, Fraud (both tabs), Assistant and Audit once before recording.
 4. **Practise the transfer once** (Fraud → Check a transfer → paste the message → Check before paying) with the values in shot 2. If it
-   no longer says STEP-UP (the engine learns from repeats), change **User** to `u_kamala_01`.
+   no longer says STEP-UP (the engine learns from repeats), register a fresh account: the form
+   scores each customer as themselves (`u_<id>` on `dev_<id>`), so a new account starts clean.
 5. **OKF patterns reviewed (optional, recommended).** Have a teammate read
    `backend/Fraud-Detection/knowledge/scam-patterns/*.md` and add
    `verified: { by: human:<name>, at: <time> }` so they show *human-reviewed* instead of
-   *unverified*. Needs a redeploy of C2.
+   *machine-confirmed* (what CI checks today). Needs a redeploy of C2.
 6. Browser at 1920×1080, zoom 110–125%, bookmarks bar and extensions hidden, the Cloud Run URL
    visible in the address bar for at least one shot. Burn captions in: judges often watch muted.
 7. Export at 2:50 or less, and check the length of the **exported file**, not the timeline.
@@ -73,7 +74,7 @@ it leaves."
 
 ### 0:20–1:10 · The checkpoint: the bank pauses, asks, and checks the answer
 
-**Shot:** Sign in as Kamala → **Fraud → Check a transfer**. Defaults (user `u_1001`, trusted
+**Shot:** Sign in as Kamala → **Fraud → Check a transfer**. Defaults (Kamala's own user and trusted
 device, typing 240), tick **New beneficiary**, amount **30,000**, **Score transaction** →
 **STEP-UP**. The box asks *"Before you pay, a quick check: what is it for?"* Paste:
 

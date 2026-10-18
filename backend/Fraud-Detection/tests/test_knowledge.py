@@ -1,5 +1,6 @@
 """The OKF scam-pattern bundle: it parses, it maps to SHIELD-P001, and verdicts cite it."""
 
+import re
 import sys
 from pathlib import Path
 
@@ -33,3 +34,21 @@ def test_verdict_cites_the_patterns_it_rests_on():
 
 def test_a_clean_message_cites_nothing():
     assert check_message("Lunch at 1pm tomorrow?")["patterns"] == []
+
+
+def test_patterns_are_machine_confirmed_against_the_engine():
+    """What `verified: process:firststep-ci/test_knowledge` on each pattern stands for."""
+    import dataclasses
+    import inspect
+
+    from shield import flags, policy
+
+    # A pattern may name a field of the policy's evidence or a red flag the reader extracts.
+    evidence_fields = {f.name for f in dataclasses.fields(policy.Evidence)} | set(flags._PATTERNS)
+    rules_in_policy = set(re.findall(r'"(S\d)"', inspect.getsource(policy.evaluate)))
+    patterns = [c for c in knowledge.concepts() if c["type"] == "Scam Pattern"]
+    assert patterns
+    for c in patterns:
+        assert set(c["flags"]) <= evidence_fields, c["id"]
+        assert set(c["rules"]) <= rules_in_policy, c["id"]
+        assert c["trust"] == "machine-confirmed", c["id"]

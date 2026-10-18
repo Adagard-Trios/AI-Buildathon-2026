@@ -7,6 +7,7 @@ rules: [S2]
 flags: [personal_account_payment]
 status: stable
 generated: { by: claude-code/opus-5.5, at: 2026-10-18T03:00:00Z }
+verified: { by: process:firststep-ci/test_knowledge, at: 2026-10-18T09:00:00Z }
 stale_after: 2027-04-18T00:00:00Z
 sources:
   - id: gasa-2025

@@ -126,7 +126,7 @@ export function ChatScreen({ onNavigateToExplanation }: Props) {
               {msg.sender === "assistant" ? (
                 <>
                   <BotIcon className="size-3.5 text-blue-600 dark:text-blue-400" />
-                  <span className="font-semibold text-blue-900 dark:text-blue-300">FinTrust Agent</span>
+                  <span className="font-semibold text-blue-900 dark:text-blue-300">FirstStep</span>
                 </>
               ) : (
                 <span className="font-medium">You</span>
