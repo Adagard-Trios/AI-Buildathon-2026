@@ -28,7 +28,7 @@ const SEAL = {
     next: ["Treat it with care, and check the sender another way."] },
 } as const;
 
-function VerdictSeal({ verdict }: { verdict: ShieldVerdict }) {
+export function VerdictSeal({ verdict }: { verdict: ShieldVerdict }) {
   const key = verdict.level === "LOW_RISK" && !verdict.verified ? "UNVERIFIED" : verdict.level;
   const seal = SEAL[key];
   return (
