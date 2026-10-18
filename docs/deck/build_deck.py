@@ -190,8 +190,8 @@ for i, (big, small) in enumerate(stats):
     box(s, x, 2.52, 3.0, 1.0, fill=TINT)
     text(s, x + 0.15, 2.58, 2.7, 0.4, big, size=20, bold=True, color=ACCENT)
     text(s, x + 0.15, 2.98, 2.7, 0.5, small, size=10, color=MUTED)
-steps = [("1", "Pay a new payee", "Kamala starts a Rs 30,000 transfer; the gateway asks for fresh proof"),
-         ("2", "Check the offer", "The WhatsApp message gets a STOP verdict, and why"),
+steps = [("1", "Pay a new payee", "Rs 30,000 to a new payee: before any code, the bank asks what it is for"),
+         ("2", "Scam check", "She pastes the WhatsApp offer: STOP, and why, at the moment of payment"),
          ("3", "Explained", "In Sinhala, with every figure checked against the tools"),
          ("4", "Sealed record", "Evidence for disputes, reimbursement and the regulator")]
 for i, (n, t, b) in enumerate(steps):
@@ -209,29 +209,30 @@ notes(s, "Sources: UK PSR APP reimbursement (7 Oct 2024); Singapore MAS/IMDA Sha
 s = S(4)
 heading(s, "Opportunities")
 cols = [("Why not existing apps?", "",
-         ["Google Messages and ScamShield protect the phone and need the victim to doubt the offer; many victims never check",
+         ["Google Messages and ScamShield protect the phone and need the victim to doubt the offer: 53% of victims aged 65+ who didn't check thought it unnecessary (CommBank, 2026)",
           "FirstStep protects the payment: it acts at the transfer, on any phone, whatever the channel (WhatsApp, calls)",
           "A bank-side control, so it fits Singapore's and the UK's duties on banks"]),
         ("How it solves the problem", "",
-         ["Step-up on a new payee, the moment regulators single out as high risk",
+         ["At a new payee the bank pauses and asks what the payment is for, the moment regulators single out as high risk",
           "Plain-language reasons in the customer's language, where generic English warnings fail",
           "Policy decides, Gemini reads: the bank can tell a regulator exactly why a payment was stopped",
           "A sealed, verifiable record for disputes and reimbursement claims"]),
         ("USP", "",
          ["Protects the payment, not just the phone",
-          "Live and tested on Cloud Run, not a slide: 11/11 end-to-end checks",
-          "Built for Sri Lanka: Sinhala, Tamil, LKR, CSE"])]
+          "Live and tested on Cloud Run: 11/11 end-to-end checks",
+          "Built for Sri Lanka first, APAC-ready: Sinhala, Tamil, LKR and CSE today; a new market is mostly data (regulator register, scam corpus, OKF pattern pack, Gemini language) plus a new policy version, no new services",
+          "Next markets: Singapore (bank duties under the Shared Responsibility Framework); Malaysia and India (Tamil already supported)"])]
 for i, (title, _, items) in enumerate(cols):
     x = 0.3 + i * 3.16
     box(s, x, 1.3, 3.0, 3.6, fill=TINT if i == 2 else SUNKEN)
     text(s, x + 0.18, 1.45, 2.65, 0.35, title, size=14, bold=True, color=ACCENT if i == 2 else INK)
     text(s, x + 0.18, 1.9, 2.65, 3.35, [[("•  ", {"color": ACCENT, "bold": True}), (it, {})] for it in items],
-         size=11.5, color=INK, spacing=7)
+         size=10.5, color=INK, spacing=5)
 
 # ---------------------------------------------------------------- 5. features
 s = S(5)
 heading(s, "List of features offered by the solution")
-feats = [("Payment checkpoint", "Every transfer is scored by the gateway; a new payee or unusual behaviour triggers a one-time-code step-up before money leaves."),
+feats = [("Payment checkpoint", "A new payee or unusual behaviour pauses the transfer: the bank asks what it is for, checks the answer with Scam Shield, and only then sends a one-time code."),
          ("Scam Shield", "Paste a WhatsApp, SMS or email offer. Gemini reads the red flags, policy SHIELD-P001 decides: a STOP / CHECK / CLEAR stamp with what to do next."),
          ("Explained in her language", "Ask why, by text or voice, in Sinhala, Tamil or English. Gemini answers from the platform's tools; any unchecked figure is withheld."),
          ("Sealed evidence", "Each decision is hashed with its model and policy and anchored in a contract; change one field and verification fails. Readable over OData."),
@@ -246,10 +247,10 @@ for i, (t, b) in enumerate(feats):
 s = S(6)
 heading(s, "Process flow diagram")
 flow = [("Transfer", "Kamala pays Rs 30,000 to a new payee", SUNKEN, INK),
-        ("Gateway", "Behavioural and network risk score", SUNKEN, INK),
-        ("STEP\u2011UP", "Fresh one-time-code proof before money moves", CAUTION_TINT, CAUTION),
-        ("Check the offer", "Gemini reads the WhatsApp message's red flags", TINT, ACCENT),
-        ("STOP", "SHIELD-P001 verdict, what to do, why, scam patterns", DANGER_TINT, DANGER)]
+        ("Gateway", "Behavioural and payee-network risk score (heuristic)", SUNKEN, INK),
+        ("Pause & ask", "\u201cWhat is this payment for?\u201d She pastes the WhatsApp offer", CAUTION_TINT, CAUTION),
+        ("Scam check", "Gemini reads the red flags; SHIELD-P001 decides", TINT, ACCENT),
+        ("STOP", "Cancel is the default; continuing needs consent, then the code", DANGER_TINT, DANGER)]
 w = 1.72
 for i, (t, b, fill, col) in enumerate(flow):
     x = 0.3 + i * (w + 0.2)
@@ -260,7 +261,7 @@ for i, (t, b, fill, col) in enumerate(flow):
         arrow(s, x + w + 0.02, 1.98, 0.16, 0.2)
 text(s, 0.3, 2.95, 9.4, 0.3, "Then the customer's question and the bank's record", size=12, bold=True, color=INK)
 flow2 = [("Ask why", "Assistant answers in Sinhala; invented figures are withheld", TINT, ACCENT),
-         ("Decide", "She cancels, or proves it is really her", SUNKEN, INK),
+         ("Decide", "She cancels, or acknowledges the risk and confirms with a code", SUNKEN, INK),
          ("Sealed", "Verdict and transfer decision hashed with model and policy", SUNKEN, INK),
          ("Verify", "Any change later fails against the contract", SUNKEN, INK),
          ("Report", "Bank and regulator read every decision over OData", SUNKEN, INK)]
@@ -272,7 +273,7 @@ for i, (t, b, fill, col) in enumerate(flow2):
     if i < len(flow2) - 1:
         arrow(s, x + w + 0.02, 3.98, 0.16, 0.2)
 text(s, 0.3, 4.95, 9.4, 0.4,
-     "Today the transfer check and the message check run side by side; feeding the message verdict into the transfer decision is next.",
+     "The step-up runs Scam Shield on the customer's answer before any code is sent; feeding the verdict into the gateway's risk score is next.",
      size=10.5, color=MUTED)
 
 # ---------------------------------------------------------------- 7. wireframes / design
@@ -366,9 +367,9 @@ text(s, 0.3, 5.3, 9.4, 0.22, "Status as deployed on 18 Oct 2026. The README's te
 # ---------------------------------------------------------------- 11. snapshots
 s = S(11)
 heading(s, "Snapshots of the prototype")
-shots = [("shot-verdict.png", "Scam Shield: STOP stamp, reasons, cited OKF scam patterns; red flags read by Gemini"),
+shots = [("shot-stepup.png", "Payment checkpoint: the bank asks what the payment is for and shows STOP before any code"),
+         ("shot-verdict.png", "Scam Shield: STOP stamp, reasons, cited OKF scam patterns; red flags read by Gemini"),
          ("shot-assistant.png", "Assistant answering in Sinhala, from the scam-check tool"),
-         ("shot-withdraw.png", "Cash planner: feasible plan and its cost against three baselines"),
          ("shot-tamper.png", "Audit: record altered, verification fails against the contract")]
 for i, (f, cap) in enumerate(shots):
     x = 0.3 + (i % 2) * 4.75
@@ -411,7 +412,7 @@ ch.value_axis.maximum_scale = 1.25
 ch.category_axis.tick_labels.font.size = Pt(10)
 ch.category_axis.tick_labels.font.name = FONT
 text(s, 0.3, 3.5, 4.6, 1.85,
-     [[("20 / 20 scams flagged, 0 false alarms", {"size": 15, "bold": True, "color": ACCENT})],
+     [[("Synthetic test set (40 msgs): recall 45% \u2192 100% with Gemini, 0 false positives", {"size": 13, "bold": True, "color": ACCENT})],
       [("Gemini reading red flags lifts recall from 45% to 100% at the same zero false-positive rate "
         "(precision 1.00). Honest limits: 40 synthetic English messages written by the team "
         "(eval/scam_synthetic_v1.jsonl); Sinhala and Tamil not yet measured; a real labelled "
@@ -433,7 +434,7 @@ s = S(13)
 heading(s, "Additional details / future development")
 done_items = [("Honest by design", "The README separates what is live, offline and planned; negative results are reported."),
               ("Responsible AI", "Policies decide, figures are grounded, privacy and advice checks run on every answer; family guardian alerts wait for the user's consent.")]
-next_items = [("Link the checks", "Feed the message verdict into the transfer decision."),
+next_items = [("Verdict into the score", "Feed the scam verdict into the gateway's risk score, not only the step-up."),
               ("Real-world eval", "Labelled Sri Lankan messages, Sinhala and Tamil, with partner banks."),
               ("Gemini on Vertex AI + ADK", "Move the agent to Agent Engine; Document AI for statements."),
               ("Public anchoring", "Anchor the log on a public testnet via Blockchain Node Engine."),
