@@ -453,7 +453,7 @@ for i, (t, b) in enumerate(next_items):
 s = S(14)
 tbx = next(sh for sh in s.shapes if sh.has_text_frame and "Provide links" in sh.text_frame.text)
 links = {"GitHub Public Repository": REPO_URL,
-         "Demo Video Link (3 Minutes)": "ADD THE VIDEO LINK",
+         "Demo Video Link (3 Minutes)": "https://youtu.be/LlTCFkWH23E",
          "Final Product Link": LIVE_URL}
 for p in tbx.text_frame.paragraphs:
     for label, url in links.items():

@@ -2,6 +2,8 @@
 
 **Live:** <https://firststep-web-214625202650.us-central1.run.app> (Google Cloud Run, `us-central1`)
 
+**Demo video (2:50):** <https://youtu.be/LlTCFkWH23E> · **Deck:** [`docs/deck/FirstStep_AI_Builder_Cup_2026.pdf`](docs/deck/FirstStep_AI_Builder_Cup_2026.pdf)
+
 **Stop the scam before the money moves. Then help people make the real decision safely.**
 
 An AI copilot for first-time investors, built on Gemini.
