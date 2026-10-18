@@ -25,6 +25,22 @@ def reset_caller(token) -> None:
     _authorization.reset(token)
 
 
+_message: ContextVar[str | None] = ContextVar("caller_message", default=None)
+
+
+def set_message(message: str | None):
+    """The user's own words this turn, so a tool can use them rather than a model's paraphrase."""
+    return _message.set(message)
+
+
+def reset_message(token) -> None:
+    _message.reset(token)
+
+
+def user_message() -> str | None:
+    return _message.get()
+
+
 def auth_headers() -> dict:
     """Authorization header for a downstream call: the caller's own token, else nothing."""
     value = _authorization.get()

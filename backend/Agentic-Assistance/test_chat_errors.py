@@ -81,3 +81,30 @@ def test_echoed_language_instruction_is_removed(monkeypatch):
         AIMessage(content="[Reply in සිංහල]\nමෙය වංචාවකි.")]})
     body = TestClient(main.app).post("/assistant/chat", json={"message": "[Reply in සිංහල] Is this a scam?"}).json()
     assert body["answer"] == "මෙය වංචාවකි."
+
+
+def test_scam_tool_checks_the_users_own_words(monkeypatch):
+    import json as _json
+
+    from caller_context import reset_message, set_message
+    from tools import scam_tools
+
+    sent = {}
+
+    class Resp:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self): return _json.dumps({"level": "HIGH_RISK", "policy_version": "P", "verified": True, "fired_rules": ["S1"], "reasons": []}).encode()
+
+    def fake_urlopen(req, timeout=20):
+        sent["text"] = _json.loads(req.data)["text"]
+        return Resp()
+
+    monkeypatch.setattr(scam_tools.urllib.request, "urlopen", fake_urlopen)
+    original = "Join Lanka Wealth Growth Fund. Guaranteed 30% monthly returns. Deposit to S. Perera's personal account."
+    token = set_message("[Reply in සිංහල] " + original)
+    try:
+        scam_tools.check_scam_message.invoke({"message_text": "guaranteed returns offer"})
+    finally:
+        reset_message(token)
+    assert sent["text"] == original

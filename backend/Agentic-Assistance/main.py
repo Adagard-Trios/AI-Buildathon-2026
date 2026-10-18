@@ -16,7 +16,7 @@ from guardian import build_alert
 import json as _json
 
 import trust_panel
-from caller_context import reset_caller, set_caller
+from caller_context import reset_caller, reset_message, set_caller, set_message
 from odata import install_error_handler
 from zt_auth import require
 
@@ -151,6 +151,7 @@ def chat(request: ChatRequest, http: Request, principal=Depends(require("assista
 
     # Tools call other components on the user's behalf with the user's own token.
     ctx = set_caller(http.headers.get("authorization"))
+    msg_ctx = set_message(request.message)
     try:
         result = agent.invoke(
             {
@@ -168,6 +169,7 @@ def chat(request: ChatRequest, http: Request, principal=Depends(require("assista
             "detail": f"The assistant's language model is unavailable ({type(exc).__name__}). "
                       "No answer was generated."})
     finally:
+        reset_message(msg_ctx)
         reset_caller(ctx)
 
     messages = result["messages"]
