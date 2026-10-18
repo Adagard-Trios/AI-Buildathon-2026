@@ -124,7 +124,7 @@ envlist() { local e="${1//@/\~}"; echo "${e//%40/@}"; }
 run() {
   g run deploy "firststep-$1" --region "$REGION" --image "$2" --service-account "$RUN_SA" \
     --allow-unauthenticated --port "$3" --memory "$4" --cpu 1 --min-instances "$5" --max-instances "$6" \
-    --cpu-boost --timeout 300 \
+    --cpu-boost --timeout 300 ${RUN_EXTRA:-} \
     --set-env-vars "^~^$(envlist "$7")" ${8:+--set-secrets "$8"}
 }
 
@@ -150,7 +150,10 @@ deploy_c2() {
 }
 deploy_c1() {
   local img; img="$(build c1-portfolio backend/Portfolio-Optimization docker/Dockerfile)"
-  run c1-portfolio "$img" 8000 2Gi 0 1 "$COMMON@SERVICE_CLIENT_ID=portfolio@KAFKA_ENABLED=false@MLFLOW_TRACKING_URI=sqlite:////tmp/mlflow.db" \
+  # 4Gi and no CPU throttling: the zero-shot Laya decision model (~1.8 GB resident with the
+  # rest of the service) loads in a background thread, which Cloud Run would otherwise starve
+  # of CPU between requests. Still scales to zero.
+  RUN_EXTRA="--no-cpu-throttling" run c1-portfolio "$img" 8000 4Gi 0 1 "$COMMON@SERVICE_CLIENT_ID=portfolio@KAFKA_ENABLED=false@MLFLOW_TRACKING_URI=sqlite:////tmp/mlflow.db" \
     "SERVICE_CLIENT_SECRET=firststep-portfolio-client-secret:latest$(gemini)"
 }
 deploy_c4() {
