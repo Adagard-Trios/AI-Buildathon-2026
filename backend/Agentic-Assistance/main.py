@@ -1,4 +1,5 @@
 import logging
+import re
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,7 +8,8 @@ from pydantic import BaseModel
 
 from langchain_core.messages import HumanMessage
 
-from agent import agent
+from agent import agent, llm
+from langchain_core.messages import SystemMessage
 from responsible_ai import run_responsible_ai_checks
 from grounding import check_grounding
 from guardian import build_alert
@@ -19,6 +21,40 @@ from odata import install_error_handler
 from zt_auth import require
 
 _log = logging.getLogger(__name__)
+
+
+_SCRIPTS = {"සිංහල": ("Sinhala", 0x0D80, 0x0DFF), "தமிழ்": ("Tamil", 0x0B80, 0x0BFF)}
+
+
+def _in_language(message: str, answer: str) -> str:
+    """Honour "[Reply in සිංහල]" / "[Reply in தமிழ்]" even when the model answered in English.
+
+    The system prompt asks for the language; small models often follow the English tool
+    output instead. If under a fifth of the letters are in the requested script, one
+    translation pass runs, keeping numbers and codes as they are. Any failure keeps the
+    original answer: an English answer beats no answer.
+    """
+    m = re.match(r"\s*\[Reply in ([^\]]+)\]", message)
+    target = _SCRIPTS.get(m.group(1).strip()) if m else None
+    if not target or not answer.strip():
+        return answer
+    name, lo, hi = target
+    letters = [c for c in answer if c.isalpha()]
+    if letters and sum(lo <= ord(c) <= hi for c in letters) / len(letters) >= 0.2:
+        return answer
+    try:
+        reply = llm.invoke([
+            SystemMessage(content=(
+                f"Translate the user's text into {name}, in {name} script, in plain words an older "
+                "first-time investor understands. Keep every number, percentage, policy name and "
+                "rule code exactly as written. Keep markdown formatting. Output only the translation.")),
+            ("human", answer),
+        ])
+        translated = _text(reply.content).strip()
+        return translated or answer
+    except Exception:  # noqa: BLE001
+        _log.exception("translation to %s failed; keeping the original answer", name)
+        return answer
 
 
 def _text(content) -> str:
@@ -142,7 +178,7 @@ def chat(request: ChatRequest, http: Request, principal=Depends(require("assista
 
     final_message = messages[-1]
 
-    response_text = _text(final_message.content)
+    response_text = _in_language(request.message, _text(final_message.content))
 
     # ----------------------------------------------
     # Extract tools used
