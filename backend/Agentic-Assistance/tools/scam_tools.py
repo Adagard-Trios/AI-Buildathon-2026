@@ -20,10 +20,10 @@ def check_scam_message(message_text: str) -> str:
     """
     # The model tends to pass a shortened paraphrase, which drops what the policy needs (the
     # fund's name for the licence check, the exact wording for script similarity). When the
-    # user's own message is substantially longer, check that instead, so the assistant and
+    # user's own message is at least as long, check that instead, so the assistant and
     # Scam Shield reach the same verdict on the same message.
     original = re.sub(r"^\s*\[Reply in [^\]]*\]\s*", "", user_message() or "")
-    if len(original) > len(message_text) * 1.2:
+    if len(original) >= len(message_text):
         message_text = original
     req = urllib.request.Request(
         f"{FRAUD_URL}/shield/check",
