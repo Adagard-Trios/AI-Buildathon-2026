@@ -1,151 +1,173 @@
-# FirstStep: demo video script (under 3:00)
+# FirstStep: demo video script (2:50)
 
 Google Cloud AI Builder Cup 2026, Challenge 1: BFSI. Submission deadline **18 Oct 2026**.
 
-## What the submission must contain (aibuildercup.com FAQ)
+Live app: <https://firststep-web-214625202650.us-central1.run.app>
 
-1. A **working deployed link** on Cloud Run / GCP / Firebase. Judges will open it.
-2. A **video demo under 3 minutes**. Hard limit: target 2:50 so a slow export never tips it over.
-3. A **public GitHub repository**.
-4. A **deck** explaining the solution in detail.
+Every shot below is the **deployed** app and shows only what it really does today. Where a
+shot depends on Gemini, the line to use if Gemini is not answering is given too; never fake it.
 
-Scoring, the same for every theme:
+## Scoring, and where the video earns it
 
-| Criterion | Weight | Where the video earns it |
+| Criterion | Weight | Earned by |
 |---|---|---|
-| Technical Merit & Gen AI Implementation | **40%** | Gemini doing real work on screen (reading, reasoning, explaining), grounding validator, models-score-rules-decide, live Cloud Run URL |
-| Problem Alignment & Impact | 25% | Opening numbers, Kamala, prevention before money moves |
-| Innovation & Creativity | 25% | Scam check + cash planner + tamper-evident audit in one flow; Laya taught by Gemini; OData for banks |
-| User Experience & Solution Design | 10% | One continuous user story, plain language, Sinhala/Tamil, voice |
+| Technical Merit & Gen AI | **40%** | Gemini reading red flags and explaining in Sinhala; rules deciding; grounded answers; a real smart contract; Cloud Run URL on screen |
+| Problem Alignment & Impact | 25% | Kamala; the numbers; stopping the money *before* it moves |
+| Innovation & Creativity | 25% | One flow: scam check, safe cash planning, step-up, tamper-evident record; scam knowledge in Google's Open Knowledge Format |
+| User Experience | 10% | One continuous story, plain words, Sinhala, the STOP stamp |
 
-Rule for the edit: **every 20 seconds the viewer should see Gemini or a Google Cloud service do
-something.** Technical merit is 40% of the score; architecture slides alone don't earn it, live
-behaviour does.
+Rule for the edit: **every ~20 seconds the viewer sees Gemini or Google Cloud do something.**
+
+---
+
+## Before you press record (do all of these)
+
+1. **Gemini is live.** On Scam Shield, the footer under a verdict must say *"Red flags read by
+   Gemini"*. If it says *"the rule engine"*, the key is not working: fix that first. Ask the
+   Assistant one question and confirm it answers.
+2. **Fresh account.** Deploys wipe accounts. Register **Kamala Perera** with a new email.
+3. **Warm the services** (they scale to zero; first calls are slow): open Portfolio, press
+   **Refresh quotes**, then **Save**, and wait until the holdings show *ready*. Open every tab
+   once.
+4. **Practise the transfer once** (Fraud → Check a transfer) with the values in shot 5. If it
+   no longer says STEP-UP (the engine learns from repeats), change **User** to `u_kamala_01`.
+5. **OKF patterns reviewed (optional, recommended).** Have a teammate read
+   `backend/Fraud-Detection/knowledge/scam-patterns/*.md` and add
+   `verified: { by: human:<name>, at: <time> }` so they show *human-reviewed* instead of
+   *unverified*. Needs a redeploy of C2.
+6. Browser at 1920×1080, zoom 110–125%, bookmarks bar and extensions hidden, the Cloud Run URL
+   visible in the address bar for at least one shot. Burn captions in: judges often watch muted.
+7. Export at 2:50 or less, and check the length of the **exported file**, not the timeline.
 
 ---
 
 ## Script
 
-Voice-over (VO) is written to be read at ~150 words a minute. Total VO is ~400 words.
-Shot = what is on screen. Every shot is the **deployed** app, with the Cloud Run / Firebase
-URL visible in the address bar at least once.
+Voice-over (VO) is ~150 words a minute; total ~400 words. Captions go in the bottom third.
 
-### 0:00–0:15 · Hook (Problem 25%)
+### 0:00–0:12 · Hook
 
-**Shot:** Black screen, white text, one line at a time: *"USD 88–114 billion lost to online scams
-in Asia-Pacific in 2025."* → *"Only 1 in 5 victims gets anything back."* Cut to a phone with a
-WhatsApp message: *"Guaranteed 30% monthly returns. Only 10 slots left."*
+**Shot:** Black, white text one line at a time: *"USD 88–114 billion lost to online scams in
+Asia-Pacific in 2025."* → *"Fewer than 1 in 4 victims get anything back."* Cut to a phone
+showing the WhatsApp message (screen-record a real chat to yourself).
 
-**VO:** "Last year people across Asia-Pacific lost up to a hundred billion dollars to online
-scams. Fewer than one in five got anything back. So FirstStep is built to stop the scam
-*before* the money moves."
+**VO:** "Last year, people across Asia-Pacific lost up to a hundred billion dollars to online
+scams, and most never got a cent back. FirstStep stops the scam before the money moves."
 
-### 0:15–0:50 · Scam Shield (C2): Gemini reads, rules decide
+### 0:12–0:45 · Scam Shield: Gemini reads, rules decide
 
-**Shot:** FirstStep → Fraud → Scam Shield. Paste the WhatsApp text. Verdict card appears:
-**HIGH_RISK**, fired rules (unlicensed entity, guaranteed returns, urgency, payment to a
-personal account), reasons. Switch language to Sinhala, explanation re-renders. Guardian
-alert toast: *"Alert sent to Kamala's son."*
+**Shot:** Sign-in page (FirstStep, "Stop the scam before the money moves") → signed in as
+Kamala → **Fraud** (Scam Shield is the first tab). Paste:
 
-**VO:** "Kamala, a retired teacher, forwards the message. Gemini pulls out the red flags: a
-guaranteed return, a countdown, a payment to a personal account, a company that isn't licensed.
-But Gemini doesn't get the final word. A versioned policy engine makes the call, so a model
-that sounds confident can't overrule hard evidence. She gets the answer in Sinhala, and her
-son gets an alert."
+> Dear investor, join Lanka Wealth Growth Fund. Guaranteed 30% monthly returns. Only 10 slots
+> left, offer ends tonight! Deposit Rs 50,000 to account 8001234567 (S. Perera, personal account).
 
-**Caption (bottom third):** `Gemini extracts flags → SHIELD-P001 rules decide`
+Press **Check message**. The **STOP** stamp lands. Hold on *what to do next*, then scroll to
+**Why** and **Known scam patterns**, then the footer line.
 
-### 0:50–1:30 · Cash planner (C1): TimesFM + optimiser
+**VO:** "Kamala, a retired teacher, gets this on WhatsApp. She pastes it into FirstStep.
+Gemini reads the red flags: a guaranteed return, an unlicensed fund, a payment to a personal
+account. But Gemini doesn't get the final say. A versioned policy makes the call, so a
+confident-sounding model can't overrule the evidence. And each verdict cites the scam pattern
+it matched, kept in Google's Open Knowledge Format with its source and who reviewed it."
 
-**Shot:** Portfolio screen with her holdings (pre-loaded, or imported from a statement photo
-if the Gemini import is working on the deployed build). Withdraw: *Rs 300,000 by March*. Plan
-result: day-by-day sell schedule, the cost compared with selling an equal slice of everything (the naive pro-rata baseline C1 costs alongside it), and the
-TimesFM p10/p50/p90 forecast bands.
+*If Gemini is not answering:* replace the second and third sentences with "The red-flag checks
+run," and cut "Gemini" from the VO in this shot. Do not show the footer.
 
-**VO:** "A month later she needs three hundred thousand rupees for school fees by March. Gemini
-reads her broker statement. TimesFM forecasts each share, and a liquidity-aware optimiser
-spreads the sales so she loses less than she would by selling a bit of everything at once. If the
-target can't be met, it tells her how much can be raised. It never pretends."
+**Caption:** `Gemini reads red flags → SHIELD-P001 decides → cites OKF scam patterns`
 
-**Caption:** `TimesFM forecast bands · MOEA/D liquidity-aware plan · infeasible plans reported, not hidden`
+### 0:45–1:10 · Assistant in Sinhala, grounded
 
-### 1:30–1:55 · Zero trust step-up (C2 gateway)
+**Shot:** **Assistant**. Choose **සිංහල**. Type or say: *"Why is this message a scam?"* The
+answer appears in Sinhala, with the tools it called and the evidence underneath.
 
-**Shot:** She sends money to the school, a new payee. Gateway decision: **STEP-UP**. Code
-entry. Verified, transfer released.
+**VO:** "She can ask why in her own language. Gemini answers using the platform's own tools,
+and a grounding check rejects any number that didn't come from them."
 
-**VO:** "Paying a new payee triggers a step-up check. That's zero trust: even inside a valid
-session, a risky action needs fresh proof. Every service checks every request on its own,
-and no service trusts another by default."
+*If Gemini is not answering:* cut this shot; the assistant will say it is unavailable.
 
-**Caption:** `Every request verified · least-privilege scopes · denials anchored to the audit log`
+**Caption:** `Gemini agent · tool-grounded · Sinhala, Tamil, English`
 
-### 1:55–2:25 · Explainable assistant (C4): no ungrounded numbers
+### 1:10–1:45 · Cash planner
 
-**Shot:** Assistant screen. Tap the mic, ask in Sinhala or English: *"Why did you flag that
-message, and why sell these shares first?"* The answer streams in; the Trust Panel shows which
-tools were called and a **Grounded ✓** badge.
+**Shot:** **Portfolio** (her starter holdings, live quotes, total in LKR) → **Withdraw**.
+Amount **300,000 LKR**, deadline **10** days, **Plan withdrawal**. Show *Feasible*, the
+day-by-day plan, then **Against naive liquidation** (this plan vs pro-rata, largest-first,
+most-liquid-first).
 
-**VO:** "She can ask why, by voice, in her own language. Gemini answers using our tools, and a
-grounding validator checks every number in the answer against the tool outputs. If a figure
-doesn't match, the answer is rejected before she sees it."
+**VO:** "A month later she needs three hundred thousand rupees for school fees. FirstStep
+plans which shares to sell and when, using fuzzy rules and a genetic algorithm, and shows what
+she saves against selling a bit of everything. If the target can't be met, it says so. We also
+fine-tuned Google's TimesFM for these forecasts: on matched backtests it beat our LSTM baseline
+by seven percent."
 
-**Caption:** `Gemini agent · tool-grounded answers · Trust Panel`
+**Caption:** `Fuzzy GA plan vs 3 baselines · TimesFM + LoRA: −6.8% pinball loss vs LSTM (offline)`
 
-### 2:25–2:45 · Tamper-evident audit (C3) + OData for banks
+### 1:45–2:10 · Zero trust: step-up on a new payee
 
-**Shot:** Audit screen: the scam verdict and the plan, each sealed with model version, policy
-version and hash. Split screen: Excel / Google Sheets pulling `/odata/v1/audit/AuditRecords`.
-Tamper tab: change one field, Verify → **INTEGRITY_FAILED** in red.
+**Shot:** **Fraud → Check a transfer**. Defaults (user `u_1001`, trusted device), tick **New
+beneficiary**, amount **30,000**, **Score transaction** → **STEP-UP**. **Send me a code** →
+type the demo code → **Identity confirmed**.
 
-**VO:** "Every decision is sealed with the model and policy that made it, and anchored
-on-chain. A bank or regulator connects through standard OData, straight from a spreadsheet.
-Change one field, and verification fails instantly."
+**VO:** "Paying the school, a new payee, needs fresh proof, even inside a valid session. That's
+zero trust: every service checks every request itself, and no service trusts another."
 
-### 2:45–2:58 · Close (architecture flash)
+**Caption:** `Every request verified · step-up on risk · denials sealed in the audit log`
 
-**Shot:** 4-second architecture graphic: Gemini at the centre; Cloud Run services; TimesFM;
-Pub/Sub; BigQuery; Firebase. Then the logo and the deployed URL.
+### 2:10–2:38 · Tamper-evident record on a smart contract
+
+**Shot:** **Audit**: the scam verdict, the plan and the transfer, each with its model and
+time. Then **Tamper-evidence**: **1 Anchor** (NETWORK shows *live*, Hardhat EVM) → **2 Verify**
+(*Integrity verified*, three matching hashes) → **3 Tamper** → **4 Verify again**
+(*Tampering detected*, the recalculated hash in red).
+
+**VO:** "Every decision is sealed with the model and policy that made it, and its fingerprint
+is written to a smart contract. Change a single field later, and verification fails."
+
+**Caption:** `SHA-256 commitment · AuditRegistry.sol · tamper → INTEGRITY FAILED`
+
+### 2:38–2:50 · Close
+
+**Shot:** One architecture slide for 4 seconds (Gemini at the centre; six services on Cloud
+Run; OKF knowledge; the contract), then the FirstStep mark and the URL.
 
 **VO:** "Gemini at the centre, on Google Cloud end to end. FirstStep: stop the scam before the
 money moves, then help people make the real decision safely."
 
 ---
 
-## Recording checklist (do these before pressing record)
+## Say this, not that
 
-These decide whether the video shows the system or a mock-up. Anything not true on the
-deployed build gets cut from the script, not faked.
+| Say | Not |
+|---|---|
+| "anchored in a smart contract" | "on Ethereum" or "on a public blockchain" (it is a private EVM inside the audit service) |
+| "we fine-tuned TimesFM; offline it beat the baseline" | showing live TimesFM forecasts (the app shows labelled empirical bands) |
+| "she pastes the message" | "Gemini reads the screenshot" (image input is not wired) |
+| nothing about Laya | "Laya decides" (it is not served) |
+| "the policy decides" | "the AI decides" |
 
-- [ ] **Deployed on Cloud Run/Firebase** and recorded from that URL. Without a deployed link
-      the submission isn't eligible, whatever the video shows. `infra/deploy/deploy_services.sh`
-      is marked *untested against a live project*, so do a dry run first.
-- [ ] `GEMINI_API_KEY` set on C2, C1 and C4 in the deployed services. Without it Scam Shield
-      falls back to rules (`"source": "rules"`) and the Gen AI story falls apart on camera.
-      Check that the verdict says `gemini`.
-- [ ] C4 agent running on **Gemini** in the cloud, not local Ollama.
-- [ ] `DEMO_MODE=true` on C2/C3 for recording (shows the step-up code, enables Tamper). Say
-      nothing about it on screen.
-- [ ] Seed one demo account with Kamala's portfolio (CSE tickers) so the planner has real holdings.
-- [ ] Sinhala voice installed in the recording browser (the app falls back to text otherwise).
-- [ ] Scam Shield takes **text**, not screenshots: the C2 endpoint accepts `text` only. Paste
-      the message; don't claim "Gemini reads the screenshot" unless image input is added.
-- [ ] Record at 1920×1080, browser zoom 110–125%, hide bookmarks and extensions.
-- [ ] Captions burned in: judges often watch muted.
-- [ ] Export ≤ 2:58; check the duration of the exported file, not the timeline.
+## Optional shots (if you have time)
 
-## Deck outline (10–12 slides, mirrors the criteria)
+- **Roles (5 s):** sign in as `auditor@firststep.demo`; the header shows *auditor* and Audit
+  lists every customer's records. Password: the `FIRSTSTEP_STAFF_PASSWORD` repo secret.
+- **OData for banks (8 s):** Excel → Data → From Web → Advanced, URL
+  `https://firststep-c3-audit-214625202650.us-central1.run.app/odata/v1/audit/AuditRecords`,
+  header `Authorization: Bearer <token>` (copy the token from the browser's local storage
+  key `firststep_access_token`). The audit log loads as a table. Every endpoint needs a token,
+  which is the zero-trust point.
 
-1. Title + one-line pitch + deployed URL + repo URL
-2. Problem in numbers (UNODC, GASA, Sri Lanka CERT)
-3. Kamala's journey (the video in four frames)
-4. Solution: four components, one flow
-5. Gemini's five roles (reads, reasons, explains, teaches Laya, supervises)
-6. Architecture on Google Cloud
-7. Design principles: models score, rules decide; no ungrounded numbers
-8. Zero trust: identities, scopes, step-up, denials anchored
-9. OData v4: how a bank/regulator plugs in (screenshot of Excel pulling audit records)
-10. Results: RQ1–RQ5 numbers, scam eval precision/recall, test counts. Report the honest ones,
-    including where the hybrid does not beat the base model
-11. Impact and roadmap
+## Deck outline (10–12 slides)
+
+1. Title, one-line pitch, live URL, repo URL
+2. The problem in numbers (UNODC, GASA, Sri Lanka Police and CERT)
+3. Kamala's journey: the video in four frames
+4. One flow: scam check → explanation → cash plan → step-up → sealed record
+5. Gemini's roles today: reads red flags, reasons as the agent, explains in Sinhala/Tamil/English
+6. Architecture on Google Cloud: six Cloud Run services, CI deploy, OKF knowledge, the contract
+7. Design principles: models score, rules decide; no ungrounded numbers; fail closed
+8. Zero trust: RS256 + JWKS, per-service checks, roles from config, step-up, row-level reads
+9. Results: RQ1 table (hybrid 0.00800 vs LSTM 0.00858 pinball on 7 matched folds, and where it
+   is *not* better), test counts per service, the negative auth suite
+10. What is live vs planned (honesty slide: README "Running on Google Cloud today")
+11. Impact and roadmap: Sepolia anchoring, served TimesFM, fine-tuned Laya, WhatsApp bot
 12. Team
