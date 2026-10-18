@@ -34,3 +34,22 @@ def test_gemini_content_blocks_are_read_as_text(monkeypatch):
     body = TestClient(main.app).post("/assistant/chat", json={"message": "is this a scam?"}).json()
     assert body["answer"] == "This is very likely a scam."
     assert body["agent_execution"]["tools_used"] == ["check_scam_message"]
+
+
+def test_figures_from_the_users_own_message_are_grounded(monkeypatch):
+    from langchain_core.messages import AIMessage
+
+    monkeypatch.setattr(main.agent, "invoke", lambda state: {"messages": state["messages"] + [
+        AIMessage(content="No real investment can guarantee 30% a month.")]})
+    body = TestClient(main.app).post("/assistant/chat", json={"message": "Is a guaranteed 30% monthly return real?"}).json()
+    assert body["answer"] == "No real investment can guarantee 30% a month."
+    assert body["responsible_ai"]["grounding"]["grounded"] is True
+
+
+def test_invented_figures_are_still_rejected(monkeypatch):
+    from langchain_core.messages import AIMessage
+
+    monkeypatch.setattr(main.agent, "invoke", lambda state: {"messages": state["messages"] + [
+        AIMessage(content="About 4,700 people lost money to this scheme.")]})
+    body = TestClient(main.app).post("/assistant/chat", json={"message": "Is this a scam?"}).json()
+    assert body["responsible_ai"]["grounding"]["grounded"] is False
