@@ -161,7 +161,7 @@ class ForecastService:
 
         located = active_head_dir(horizon)
         if located is None:
-            self._reasons[horizon] = f"no trained head registered for h={horizon} (Colab Part A, then --install)"
+            self._reasons[horizon] = f"no trained head registered for h={horizon}; showing this holding's own two-year return range"
             return None
         directory, version = located
         meta = json.loads((directory / "meta.json").read_text(encoding="utf-8"))
