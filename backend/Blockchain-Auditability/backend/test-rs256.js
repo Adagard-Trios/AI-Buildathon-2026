@@ -67,6 +67,13 @@ const call = (port, method, path, token, body) => new Promise((resolve, reject) 
   const anchor = await call(port, "POST", "/api/audit/evaluate", rs({ sub: "1" }),
     { transactionId: "tx-own-1", riskScore: 90, confidence: 0.95, amount: 100, transactionType: "transfer", modelVersion: "m1" });
   assert.ok(anchor.status < 300, `anchor as user 1: ${anchor.status}`);
+  // A decision held for human review is not anchored yet: "pending", never "tampered".
+  const pend = await call(port, "POST", "/api/audit/evaluate", rs({ sub: "1" }),
+    { transactionId: "tx-pend-1", riskScore: 85, confidence: 40, amount: 100, transactionType: "transfer", modelVersion: "m1" });
+  assert.ok(pend.status < 300, `pending anchor: ${pend.status}`);
+  const pv = await call(port, "GET", "/api/audit/tx-pend-1/verify", rs({ sub: "1" }));
+  assert.strictEqual(pv.body.status, "PENDING_REVIEW", `pending verify: ${JSON.stringify(pv.body)}`);
+
   const T = "/api/audit/tx-own-1/tamper";
   assert.strictEqual((await call(port, "POST", T, rs({ sub: "2" }), {})).status, 404, "someone else's record");
   assert.strictEqual((await call(port, "POST", T, rs({ sub: "2", roles: ["auditor"] }), {})).status, 404, "auditor reads, does not alter");
