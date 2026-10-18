@@ -156,7 +156,7 @@ def notes(slide, s):
 # ---------------------------------------------------------------- 1. team details
 s = S(1)
 tb = next(sh for sh in s.shapes if sh.has_text_frame and "Team Details" in sh.text_frame.text)
-values = {"Team name:": "Adagard Trios",
+values = {"Team name:": "Adagard",
           "Team leader name:": "Nivakaran Shanmugabavan",
           "Problem Statement:": "Challenge 1 (BFSI) · Stopping the payment a scam victim approves (APP fraud)"}
 for p in tb.text_frame.paragraphs:
