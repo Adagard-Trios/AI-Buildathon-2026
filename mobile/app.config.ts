@@ -10,7 +10,7 @@ const config: ExpoConfig = {
   version: "0.1.0",
   orientation: "portrait",
   userInterfaceStyle: "light",
-  backgroundColor: "#F6F7F9",
+  backgroundColor: "#F3F5F4",
   ios: {
     bundleIdentifier: "com.adagardtrios.firststep",
     supportsTablet: false,

@@ -29,12 +29,21 @@ RUN uv pip install --system --index-url https://download.pytorch.org/whl/cpu tor
 # fails on `import jwt` (a 500), while anonymous ones still get a clean 401.
 RUN uv pip install --system "pyjwt[crypto]>=2.8,<3"
 
-COPY . .
-
+# Laya, the decision engine the withdrawal planner consults (Convai Innovations' package; its
+# homepage is the convaiinnovations/laya model it loads). Served zero-shot until a fine-tuned
+# head is registered. The 808 MB base is baked in, so a cold start never downloads it, and
+# into appuser's own cache because decision/engine.py looks under the user's home.
+RUN uv pip install --system "laya==0.4.1"
 # Non-root: this service is reachable from the other three components, so it should not run
 # as root even on a testnet-grade deployment.
-RUN useradd --create-home --uid 1000 appuser \
- && mkdir -p /app/artifacts && chown -R appuser:appuser /app
+RUN useradd --create-home --uid 1000 appuser
+USER appuser
+RUN python -c "from huggingface_hub import snapshot_download; snapshot_download('convaiinnovations/laya')"
+USER root
+
+COPY . .
+
+RUN mkdir -p /app/artifacts && chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 8000

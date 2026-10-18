@@ -1,6 +1,6 @@
 # FirstStep
 
-> *Working name. Change it before submission.*
+**Live:** <https://firststep-web-214625202650.us-central1.run.app> (Google Cloud Run, `us-central1`)
 
 **Stop the scam before the money moves. Then help people make the real decision safely.**
 
@@ -39,6 +39,33 @@ quietly change it later.
 
 ---
 
+## Running on Google Cloud today
+
+Sections 4 to 15 describe the full design. This is what is deployed right now, so the two are
+never confused.
+
+| | What runs | Notes |
+|---|---|---|
+| **Web app** | Next.js on Cloud Run: <https://firststep-web-214625202650.us-central1.run.app> | Register any email; every new account gets a starter portfolio |
+| **Platform** | Accounts, portfolios, RS256 token signing (JWKS) | One warm instance; SQLite, so accounts reset on each platform deploy |
+| **C1 Portfolio** | Cash Planner (fuzzy + GA + baselines), MOEA/D, empirical forecast bands, **Laya zero-shot** decision layer | The fine-tuned TimesFM hybrid is evaluated offline (section 20), not served |
+| **C2 Fraud** | Scam Shield (SHIELD-P001), transaction gateway G1-G7, STEP-UP | Gemini reads red flags when a key with credit is configured; otherwise rules, and the verdict says which |
+| **C3 Audit** | Policy, canonical hashing, OData, tamper demo, **AuditRegistry.sol on a Hardhat EVM inside the service** | Private chain that lives as long as the instance; Sepolia is the next step |
+| **C4 Assistant** | LangGraph agent on Gemini, grounding validator, Trust Panel | Answers only when Gemini is reachable; otherwise says so, never invents |
+| **Deploy** | GitHub Actions on every push to `main`, keyless (Workload Identity Federation) | Only changed services rebuild; `infra/deploy/deploy_lean.sh` |
+| **Mobile** | Expo app in `mobile/`, customer screens only | Not published to a store; point `EXPO_PUBLIC_*_URL` at the services above |
+
+**Roles.** Everyone who registers is a *customer* and sees only their own data. Two staff
+accounts are provisioned by the platform at startup and cannot be self-registered:
+`auditor@firststep.demo` (reads every audit record, alters nothing) and `admin@firststep.demo`
+(admin and auditor; may reset demo state). Their password is a repository secret, not in this
+file. Scaled to zero to keep cost near nothing; the platform keeps one instance.
+
+Not deployed, to keep cost low: Kafka, MLflow, the OData gateway, Pub/Sub, BigQuery, the load
+balancer, Cloud Armor and VPC-SC. Every service runs without them.
+
+---
+
 ## What FirstStep does
 
 | For Kamala | In plain words | Component |
@@ -71,6 +98,8 @@ TimesFM in BigQuery forecasts prices; Vertex AI, Agent Engine and Cloud Run run 
 ---
 
 ## Table of contents
+
+- [Running on Google Cloud today](#running-on-google-cloud-today)
 
 1. [The problem in numbers](#1-the-problem-in-numbers)
 2. [The four components](#2-the-four-components)
@@ -148,15 +177,16 @@ trusts another by default.
 
 Kamala's story, as shown in the three-minute video, with the component behind each step.
 
-1. **C2 · Scam Shield.** Kamala forwards the WhatsApp screenshot. Gemini reads the image, the
-   fast red-flag checks run, the entity is unlicensed and the text matches a known scam
+1. **C2 · Scam Shield.** Kamala pastes the WhatsApp message (the deployed build takes text;
+   screenshots are designed, not yet wired). The red-flag checks run, the entity is unlicensed and the text matches a known scam
    script. Verdict: **HIGH_RISK**, explained in Sinhala. Her son gets a Family Guardian alert.
 2. **C3 · Audit.** The verdict is sealed with its model and policy version.
 3. **C1 · Photo-to-Portfolio.** She photographs her broker statement; Gemini extracts her
    holdings for her to confirm.
 4. **C4 · Assistant (voice, Sinhala).** *"I need Rs 300,000 for school fees by March."*
 5. **C1 · Cash Planner.** A day-by-day sell plan, its cost versus naive selling, and
-   forecast bands from TimesFM.
+   per-holding forecast bands (empirical in the deployed build; the TimesFM hybrid's results
+   are in section 20).
 6. **C2 · Transaction gateway.** The transfer to a new payee is scored and the gateway asks
    for a **STEP-UP** check. Zero trust in action: a risky action needs fresh proof, even inside
    a valid session.
@@ -333,8 +363,13 @@ small human-checked set keeps Gemini's labels honest.
 
 ### 6.6 Using Laya safely
 
-- **Fine-tuned only.** The model card reports zero-shot typed-decision accuracy near the random
-  baseline and describes Laya as a base to specialise. No head is used without fine-tuning.
+- **Fine-tuned for production.** The model card reports zero-shot typed-decision accuracy near
+  the random baseline and describes Laya as a base to specialise. **Interim:** the deployed C1
+  serves the base model zero-shot (`laya-base-0.4.1-zero-shot`) for the Cash Planner's
+  per-holding decisions until the Colab-trained head is registered. Its answers are used only
+  at confidence >= 0.6, only nudge fuzzy priorities, and never set an amount; the GA computes
+  every amount and the response records which answers were applied. Scam Shield and the
+  assistant do not use Laya.
 - **Confidence is not trusted alone.** The model card warns the model can stay confident while
   wrong, so escalation uses verdict bands and shadow checks, not Laya's confidence.
 - **Languages are validated, not assumed.** Sinhala, Tamil and code-mixed accuracy is measured
@@ -368,7 +403,13 @@ confirms every row before it is saved.
 
 Forecasts come from **BigQuery ML `AI.FORECAST`** using Google's TimesFM foundation model:
 p10 / p50 / p90 bands per holding, with no model to train or host. A plain LSTM baseline is
-kept for comparison. News relevance and sentiment come from a fine-tuned Laya-multilingual head.
+kept for comparison.
+
+*Deployed today:* each holding's empirical return quantiles over two years, labelled as such,
+feed the planner. A TimesFM model fine-tuned with LoRA plus an LSTM residual head ("hybrid")
+was trained on a Colab T4 and evaluated walk-forward (section 20); it is registered locally but
+not served, because TimesFM's 821 MB base would make every cold start of a scale-to-zero
+service slow. News relevance and sentiment come from a fine-tuned Laya-multilingual head.
 
 ### 7.3 Cash Planner (fuzzy inference + genetic algorithm)
 
@@ -495,9 +536,11 @@ clustered into campaigns by embedding similarity and shared entities, shown in L
    HUMAN_REVIEW; below 80 → APPROVE.
 2. **Canonical hashing.** Fixed field set, sorted keys, SHA-256.
 3. **On-chain anchoring.** `AuditRegistry.sol` stores only hash, decision, policy version,
-   model version, timestamp and submitter. Deployed to an Ethereum testnet (Sepolia), with
-   Blockchain Node Engine as the node provider where available. A local Hardhat node and a
-   mock ledger are kept for development.
+   model version, timestamp and submitter. *Deployed today:* the C3 container starts a Hardhat
+   EVM node, deploys the contract and anchors every decision as a contract transaction with a
+   receipt and block number. The chain is private and lives as long as the instance, like the
+   records it commits to; if it cannot start, C3 serves on a fallback ledger and labels it
+   "chain unavailable". Target: an Ethereum testnet (Sepolia) via Blockchain Node Engine.
 4. **BigQuery mirror.** Every off-chain record and its hash is also written to BigQuery and
    exposed through the C3 OData service, so auditors can query it from Excel, Power BI or any
    OData client.
@@ -706,7 +749,7 @@ Content-Type: application/json
 | **Fail closed** | Misconfiguration refuses, never accepts | `AUTH_REQUIRED` is on unless explicitly `false`; no key configured means 500, not "allow"; placeholder or short client secrets stop the platform at start-up |
 | **Row-level data** | A customer sees only their own records | Owner stamped by the producing component from the authenticated caller, inside the hashed audit envelope; C3 and C2 filter every read path (list, entity, `$count`, `Verify`) before query options run; auditors and scoped service identities see all |
 | **Network (local)** | Nothing reachable that need not be | Host ports bound to 127.0.0.1 (`BIND_ADDR`); Kafka on an internal-only network with no host port; MLflow loopback-only; the OData gateway is the single entry point for external systems |
-| **Authorisation** | Least privilege by role, not just a valid login | `roles` claim granted only by deployment config (`PLATFORM_ROLES`), never by the API. C3 human review needs `auditor`; resetting audit records needs `admin` *and* `DEMO_MODE`; outside `DEMO_MODE` only the components that made a decision may anchor it |
+| **Authorisation** | Least privilege by role, not just a valid login | `roles` claim granted only by deployment config (`PLATFORM_ROLES`), never by the API. Role-bearing addresses are provisioned by the platform at startup and refused at self-registration (registration does not prove ownership of an email). C3 human review needs `auditor`; resetting audit records needs `admin` *and* `DEMO_MODE`; the tamper demo alters only the caller's own record (or any, for `admin`); resetting C2's shared fraud state needs `admin`; outside `DEMO_MODE` only the components that made a decision may anchor it |
 | **Edge** | Filter before the app | External HTTPS Load Balancer with Cloud Armor: WAF rules, rate limits, geo and bot controls |
 | **Admin and reviewer consoles** | Context-aware access | Identity-Aware Proxy in front of C3 review and admin screens |
 | **Service to service** | No implicit trust | Cloud Run services set to internal ingress and require IAM authentication; callers present Google-signed ID tokens |
@@ -804,8 +847,10 @@ shared/
   odata/                    OData query engine, paging, errors, $metadata
   auth/                     zero-trust token verification, service tokens
 frontend/                   Next.js app (Scam Shield, Trust Panel, voice, statement import)
+mobile/                     Expo (React Native) customer app
 data/sql/                   BigQuery schemas, models, views
-infra/                      iam/, deploy/, network/, docker/ (written, not yet run on Google Cloud)
+infra/                      deploy/deploy_lean.sh (what runs today), docker/, iam/, network/
+.github/workflows/          deploy.yml: Cloud Run deploy on every push to main
 eval/                       scam_eval.py and labelled seed set
 docs/PLAN.md                gap analysis and phase plan
 ```
@@ -855,7 +900,20 @@ Agentic-Assistance, Laya, Gateway), `pytest` in `shared/odata`, `npm test` in
 
 ### Deploy
 
-Requires a Google Cloud project. These scripts have **not** been run; expect to fix drift.
+**What is used today.** Every push to `main` runs `.github/workflows/deploy.yml`, which
+authenticates keylessly and runs `infra/deploy/deploy_lean.sh` for the services whose folders
+changed (`shared/` or `infra/` changes redeploy everything). By hand:
+
+```bash
+PROJECT_ID=firststep-buildathon bash infra/deploy/deploy_lean.sh            # everything
+PROJECT_ID=firststep-buildathon bash infra/deploy/deploy_lean.sh c2 frontend # only these
+```
+
+New environment variables or secrets must be added to `deploy_lean.sh`, or they will not exist
+on Cloud Run. One-time setup for CI is `infra/deploy/setup_github_deploy.sh`.
+
+**Full design (not yet run).** The scripts below build the complete architecture in sections
+5 and 13; expect to fix drift.
 
 ```bash
 bash infra/iam/create_service_accounts.sh
@@ -873,7 +931,12 @@ bash infra/network/create_vpcsc_perimeter.sh     # requires an organization
 | Variable | Used by | Meaning |
 |---|---|---|
 | `PROJECT_ID`, `REGION` | all | Google Cloud project and region |
-| `GEMINI_MODEL` | C1, C2, C4 | Gemini model ID |
+| `GEMINI_MODEL` | C1, C2, C4 | Gemini model ID (default `gemini-3.5-flash-lite`; 2.0-flash and 2.5-flash-lite are retired for new projects) |
+| `GEMINI_API_KEY` | C1, C2, C4 | From Secret Manager (`firststep-gemini-key`) on Cloud Run |
+| `PLATFORM_ROLES` | Platform | `email:role role;email:role`; known roles `admin`, `auditor`. These accounts are provisioned at startup and cannot be self-registered |
+| `PLATFORM_STAFF_PASSWORD` | Platform | Password for the provisioned staff accounts (12+ characters; GitHub secret `FIRSTSTEP_STAFF_PASSWORD` in CI) |
+| `PLATFORM_STARTER_PORTFOLIO` | Platform | `true` gives every new account the demo portfolio |
+| `PROJECT_NUMBER` | deploy | Passed by CI so the deploy needs no Resource Manager API |
 | `LAYA_ENDPOINT` | C1, C2, C4 | Internal URL of the Laya inference service |
 | `LAYA_HEADS` | Laya | Which fine-tuned heads to load (e.g. `scam_flags,news,decision,intent,safety`) |
 | `LAYA_LANGS_VALIDATED` | C2, C4 | Languages Laya is trusted for; others route to Gemini |
@@ -885,7 +948,7 @@ bash infra/network/create_vpcsc_perimeter.sh     # requires an organization
 | `CHAIN_RPC_URL`, `REGISTRY_ADDRESS`, `LEDGER_MODE` | C3 | Chain endpoint, contract address, `chain` or `mock` |
 | `ODATA_MAX_PAGE_SIZE` | all | Default 200 |
 | `ALLOWED_AUDIENCES` | all | Token audiences each service accepts |
-| `DEMO_MODE` | C3 | Enables the `Tamper` action; must be `false` in production |
+| `DEMO_MODE` | C2, C3 | Enables the `Tamper` action and shows the step-up code on screen; must be `false` in production |
 | `GUARDIAN_ENABLED` | C4 | Enable family alerts |
 
 ---
@@ -924,6 +987,22 @@ bash infra/network/create_vpcsc_perimeter.sh     # requires an organization
 
 All results are reported with test-set sizes. Negative results are reported, not tuned away.
 
+### Results so far: RQ1, forecast quality (C1)
+
+Walk-forward backtest, 5-day horizon, no look-ahead, scored on the 7 folds every model shares
+(`backend/Portfolio-Optimization/experiments/colab_finetune.ipynb`, Colab T4).
+
+| Model | Folds | Predictions | Pinball loss | MAE | p10 / p50 / p90 coverage |
+|---|---|---|---|---|---|
+| **Hybrid** (TimesFM + LoRA, LSTM residual head) | 7 | 8,558 | **0.00800** | **0.0248** | 14.4% / 54.8% / 87.2% |
+| LSTM baseline | 7 | 9,944 | 0.00858 | 0.0264 | 12.3% / 50.3% / 84.4% |
+
+The hybrid is 6.8% better on pinball loss and better on MAE, and its upper band is more honest
+(87.2% against a 90% target). It is *not* better calibrated everywhere: its p10 and p50
+coverage drift further from target than the LSTM's. The zero-shot TimesFM and Chronos-Bolt rows
+in the raw table are excluded: the backtest fed them one series per fold instead of one per
+symbol, so they made one prediction per fold and are not comparable.
+
 ---
 
 ## 21. Build status
@@ -934,20 +1013,21 @@ runs on Google Cloud, so no row below says "done".
 | Part | Status |
 |---|---|
 | Shared OData layer and auth | Built locally (`shared/`); ETag / `If-Match` on Platform `Portfolios` only; not tested with Excel or Power BI; no `$search`, `$apply` |
-| Platform service | Built locally (SQLite, JWT, client credentials); Firestore not implemented |
-| Laya serving, distillation, eval scripts | Built locally; **no fine-tuned checkpoint exists**, so Laya serves nothing yet and every call routes to Gemini or rules |
+| Platform service | **Live on Cloud Run** (SQLite, RS256 + JWKS, client credentials, staff roles); Firestore not implemented |
+| Laya serving, distillation, eval scripts | Built locally. **C1 serves the base model zero-shot on Cloud Run** for Cash Planner decisions (confidence-gated, never sets amounts); no fine-tuned head yet. Scam Shield and the assistant do not use Laya |
 | C1 Photo-to-Portfolio, Report Reader | Built locally; Gemini path tested with a mock only |
-| C1 Cash Planner, MOEA/D | Built locally (pre-existing); forecasts use the local adapters, not BigQuery `AI.FORECAST` (SQL written, unrun) |
+| C1 Cash Planner, MOEA/D | **Live on Cloud Run**; forecasts are labelled empirical bands. Hybrid TimesFM model trained and evaluated offline (RQ1 above), not served; BigQuery `AI.FORECAST` SQL written, unrun |
 | C2 Scam Shield | Built locally; seed registry and corpus are tiny; RDAP domain age and Web Risk are opt-in (`RDAP_ENABLED`, `WEBRISK_API_KEY`) and untested live; Vertex AI Search / vector search not wired |
 | C2 Transaction gateway | Built locally; models are the **simulated** dual-stream engine, not BigQuery ML (SQL written, unrun) |
 | C2 Campaign Radar | Built locally (exact-hash grouping); Looker Studio not set up |
-| C3 Policy, hashing, event anchoring, OData | Built locally against the mock ledger |
+| C3 Policy, hashing, event anchoring, OData | **Live on Cloud Run**, anchoring to `AuditRegistry.sol` on a Hardhat EVM inside the service |
 | C3 BigQuery mirror, Pub/Sub OIDC verification | Written (REST, no SDK), OIDC verifier unit-tested with a local key; BigQuery insert untested live |
-| C3 Sepolia anchoring | Not run (code supports a chain RPC; only the mock ledger and local Hardhat were exercised) |
+| C3 Sepolia anchoring | Not run (needs a funded testnet key); the deployed chain is the in-service Hardhat node |
 | C4 Orchestrator | Runs on local LangGraph (Ollama, or Gemini with a key); ADK / Agent Engine script written, unrun |
 | C4 Grounding, Trust Panel, Guardian, voice | Built locally; voice uses the browser Web Speech API, not Google Speech APIs; Guardian delivery is a webhook/queue only |
 | Zero-trust (tokens, audiences, scopes, step-up, denial anchoring) | Built locally with a negative test suite; App Check, IAP, Cloud Armor, VPC-SC not run |
-| Cloud Run deployment of all services | Scripts and Dockerfiles written, unrun |
+| Cloud Run deployment | **Live**: web, platform and C1-C4 via `deploy_lean.sh`, redeployed by GitHub Actions on every push to `main`. The full-design scripts (load balancer, Cloud Armor, VPC-SC, Agent Engine) are written, unrun |
+| Mobile app | Built (Expo, customer screens); not published |
 
 ## 22. Known limitations
 
@@ -962,10 +1042,15 @@ runs on Google Cloud, so no row below says "done".
 6. **OData support is partial:** `$search` and `$apply` are not implemented.
 7. **VPC Service Controls requires a Google Cloud organization**; without one, the data
    perimeter is documented but not enforced.
-8. **On-chain anchoring uses a testnet** and a hash-commitment scheme, not zero-knowledge proofs.
-9. **Forecasts are bands, not predictions.**
-10. **Portfolios are user-supplied.** There is no brokerage connection.
-11. **Not financial advice.** FirstStep is a prototype for education and protection.
+8. **On-chain anchoring uses a private chain** inside the audit service today (a testnet is the
+   target) and a hash-commitment scheme, not zero-knowledge proofs.
+9. **Laya runs zero-shot** in the Cash Planner until a fine-tuned head is trained; the model
+   card puts zero-shot typed decisions near random, which is why its answers are gated and
+   never set amounts.
+10. **Accounts reset on each platform deploy** (SQLite on the instance); Firestore is planned.
+11. **Forecasts are bands, not predictions.**
+12. **Portfolios are user-supplied.** There is no brokerage connection.
+13. **Not financial advice.** FirstStep is a prototype for education and protection.
 
 ---
 
@@ -986,7 +1071,9 @@ runs on Google Cloud, so no row below says "done".
 | Name | Role |
 |---|---|
 | Nivakaran S. | Design and development of all four components |
-| *Name* | *Role (the rules require 2–4 members)* |
+| Dhushanthini R. | Component 2: fraud and scam detection |
+| Abeysekara W C S M | Component 3: tamper-evident auditability |
+| Duwaragie | Google Cloud deployment and CI |
 
 ---
 
